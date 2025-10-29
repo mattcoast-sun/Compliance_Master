@@ -60,26 +60,37 @@ app.add_middleware(
 document_parser = DocumentParser()
 llm_service = GraniteLLMService()
 
-# Create outputs directory
-OUTPUTS_DIR = Path("outputs")
-OUTPUTS_DIR.mkdir(exist_ok=True)
+# Storage configuration
+# Set SAVE_LOCAL_COPIES=true in .env for local development
+# On Railway/production, leave it false (ephemeral filesystem)
+SAVE_LOCAL_COPIES = os.getenv("SAVE_LOCAL_COPIES", "false").lower() == "true"
 
-# Create quality checks directory
-QUALITY_CHECKS_DIR = Path("quality_checks")
-QUALITY_CHECKS_DIR.mkdir(exist_ok=True)
+# Create outputs directory only if saving locally
+if SAVE_LOCAL_COPIES:
+    OUTPUTS_DIR = Path("outputs")
+    OUTPUTS_DIR.mkdir(exist_ok=True)
+    QUALITY_CHECKS_DIR = Path("quality_checks")
+    QUALITY_CHECKS_DIR.mkdir(exist_ok=True)
+    logger.info("Local file saving enabled - outputs will be saved to disk")
+else:
+    logger.info("Local file saving disabled - outputs returned in JSON only (production mode)")
 
 
 def save_output_json(data: dict, prefix: str = "output") -> str:
     """
     Save output data as JSON file with timestamp.
+    Only saves if SAVE_LOCAL_COPIES is enabled.
     
     Args:
         data: Dictionary data to save
         prefix: Filename prefix
         
     Returns:
-        Path to saved file
+        Path to saved file or None if saving disabled
     """
+    if not SAVE_LOCAL_COPIES:
+        return None
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{prefix}_{timestamp}.json"
     filepath = OUTPUTS_DIR / filename
@@ -491,15 +502,18 @@ async def check_quality(request: QualityCheckRequest):
             "message": f"Quality check completed with grade {quality_grade}"
         }
         
-        # Save to quality checks directory
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"quality_check_{request.document_type}_{timestamp}.json"
-        filepath = QUALITY_CHECKS_DIR / filename
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(response_data, f, indent=2, ensure_ascii=False)
-        
-        logger.info(f"Saved quality check report to: {filepath}")
+        # Save to quality checks directory (only if local saving enabled)
+        filepath = None
+        if SAVE_LOCAL_COPIES:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"quality_check_{request.document_type}_{timestamp}.json"
+            filepath = QUALITY_CHECKS_DIR / filename
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(response_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved quality check report to: {filepath}")
+            filepath = str(filepath)
         
         return QualityCheckResponse(
             overall_score=overall_score,
@@ -511,7 +525,7 @@ async def check_quality(request: QualityCheckRequest):
             quality_grade=quality_grade,
             success=True,
             message=f"Quality check completed with grade {quality_grade}",
-            saved_file_path=str(filepath)
+            saved_file_path=filepath  # None if SAVE_LOCAL_COPIES=false
         )
         
     except Exception as e:
