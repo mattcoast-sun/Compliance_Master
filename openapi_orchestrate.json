@@ -1,0 +1,517 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Compliance Master API",
+    "description": "AI-powered document processing and ISO template generation for watsonx Orchestrate",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8765",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/parse-document": {
+      "post": {
+        "operationId": "parseDocument",
+        "summary": "Parse document",
+        "description": "Upload a DOCX or PDF file and extract text content",
+        "tags": ["Document Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to parse (DOCX, PDF, etc.)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document parsed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Document parsed successfully"
+                    },
+                    "extracted_text": {
+                      "type": "string",
+                      "description": "Text extracted from the document"
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "description": "Document metadata (filename, size, etc.)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - no file provided"
+          },
+          "500": {
+            "description": "Server error during parsing"
+          }
+        }
+      }
+    },
+    "/api/v1/extract-fields": {
+      "post": {
+        "operationId": "extractFields",
+        "summary": "Extract fields from text",
+        "description": "Use AI to extract specific fields from document text",
+        "tags": ["Field Extraction"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["document_text"],
+                "properties": {
+                  "document_text": {
+                    "type": "string",
+                    "description": "The text content to extract fields from"
+                  },
+                  "fields_to_extract": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": [
+                      "document_title",
+                      "document_number",
+                      "revision_number",
+                      "effective_date",
+                      "department",
+                      "author",
+                      "purpose",
+                      "scope"
+                    ],
+                    "description": "List of field names to extract"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fields extracted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Fields extracted successfully"
+                    },
+                    "extracted_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field_name": {
+                            "type": "string",
+                            "example": "document_title"
+                          },
+                          "value": {
+                            "type": "string",
+                            "example": "Quality System Procedure"
+                          },
+                          "confidence": {
+                            "type": "number",
+                            "example": 0.95
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generate-iso-template": {
+      "post": {
+        "operationId": "generateISOTemplate",
+        "summary": "Generate ISO template",
+        "description": "Generate an ISO-compliant document template from extracted fields",
+        "tags": ["ISO Template Generation"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["extracted_fields"],
+                "properties": {
+                  "document_type": {
+                    "type": "string",
+                    "default": "quality_system_record",
+                    "description": "Type of ISO document to generate",
+                    "example": "quality_system_record"
+                  },
+                  "extracted_fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Dictionary of field names and their values",
+                    "example": {
+                      "document_title": "Quality System Procedure",
+                      "document_number": "QSP-001",
+                      "revision_number": "1.0"
+                    }
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "default": "ISO 9001:2015",
+                    "description": "ISO standard to follow",
+                    "example": "ISO 9001:2015"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ISO template generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ISO template generated successfully"
+                    },
+                    "generated_template": {
+                      "type": "string",
+                      "description": "The complete ISO-compliant document template"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "example": "quality_system_record"
+                    },
+                    "iso_standard": {
+                      "type": "string",
+                      "example": "ISO 9001:2015"
+                    },
+                    "saved_file_path": {
+                      "type": "string",
+                      "description": "Path where the output was saved"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/process-complete": {
+      "post": {
+        "operationId": "processComplete",
+        "summary": "Complete pipeline (RECOMMENDED)",
+        "description": "Upload a file and automatically parse, extract fields, and generate ISO template in one step",
+        "tags": ["Complete Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to process (DOCX, PDF, etc.)"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "default": "ISO 9001:2015",
+                    "description": "ISO standard to follow",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "default": "quality_system_record",
+                    "description": "Type of ISO document to generate",
+                    "example": "quality_system_record"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete processing successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Complete processing pipeline executed successfully"
+                    },
+                    "generated_template": {
+                      "type": "string",
+                      "description": "The complete ISO-compliant document template"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "example": "quality_system_record"
+                    },
+                    "iso_standard": {
+                      "type": "string",
+                      "example": "ISO 9001:2015"
+                    },
+                    "saved_file_path": {
+                      "type": "string",
+                      "description": "Path where the output was saved"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or parameters"
+          },
+          "500": {
+            "description": "Server error during processing"
+          }
+        }
+      }
+    },
+    "/api/v1/check-quality": {
+      "post": {
+        "operationId": "checkQuality",
+        "summary": "Check quality of ISO template",
+        "description": "Validate a generated ISO template against quality rules using AI",
+        "tags": ["Quality Assurance"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "generated_template",
+                  "extracted_fields",
+                  "document_type",
+                  "iso_standard"
+                ],
+                "properties": {
+                  "generated_template": {
+                    "type": "string",
+                    "description": "The ISO template text to check"
+                  },
+                  "extracted_fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "The fields used to generate the template"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "example": "quality_system_record"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "example": "ISO 9001:2015"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quality check completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Quality check completed with grade A"
+                    },
+                    "overall_score": {
+                      "type": "number",
+                      "description": "Overall quality score (0-100)",
+                      "example": 95.5
+                    },
+                    "quality_grade": {
+                      "type": "string",
+                      "description": "Quality grade: A, B, C, D, or F",
+                      "example": "A"
+                    },
+                    "total_rules_checked": {
+                      "type": "integer",
+                      "example": 10
+                    },
+                    "rules_passed": {
+                      "type": "integer",
+                      "example": 9
+                    },
+                    "rules_failed": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "violations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rule_id": {
+                            "type": "string",
+                            "example": "RULE_001"
+                          },
+                          "rule_name": {
+                            "type": "string",
+                            "example": "Department Field Required"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": ["error", "warning", "info"],
+                            "example": "error"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Department field must be present"
+                          },
+                          "violation_details": {
+                            "type": "string",
+                            "example": "Department field not found in template"
+                          },
+                          "passed": {
+                            "type": "boolean",
+                            "example": false
+                          }
+                        }
+                      }
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of recommendations for improvement"
+                    },
+                    "saved_file_path": {
+                      "type": "string",
+                      "description": "Path to saved quality report"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "System health and status endpoints"
+    },
+    {
+      "name": "Document Processing",
+      "description": "Parse and extract text from documents"
+    },
+    {
+      "name": "Field Extraction",
+      "description": "Extract structured fields from text using AI"
+    },
+    {
+      "name": "ISO Template Generation",
+      "description": "Generate ISO-compliant document templates"
+    },
+    {
+      "name": "Complete Processing",
+      "description": "End-to-end document processing pipeline"
+    },
+    {
+      "name": "Quality Assurance",
+      "description": "Validate and check quality of generated templates"
+    }
+  ]
+}
+

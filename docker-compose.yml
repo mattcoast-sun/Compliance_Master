@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  compliance-master-api:
+    build: .
+    container_name: compliance-master-api
+    ports:
+      - "8765:8765"
+    environment:
+      - WATSONX_API_KEY=${WATSONX_API_KEY}
+      - WATSONX_PROJECT_ID=${WATSONX_PROJECT_ID}
+      - WATSONX_URL=${WATSONX_URL:-https://us-south.ml.cloud.ibm.com}
+      - GRANITE_MODEL_ID=${GRANITE_MODEL_ID:-ibm/granite-13b-chat-v2}
+      - API_TITLE=Compliance Master API
+      - API_VERSION=1.0.0
+      - API_DESCRIPTION=AI-powered document processing and ISO template generation
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  logs:
+

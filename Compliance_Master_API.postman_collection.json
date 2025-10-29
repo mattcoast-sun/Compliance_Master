@@ -1,0 +1,140 @@
+{
+  "info": {
+    "name": "Compliance Master API",
+    "description": "AI-powered document processing and ISO template generation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the API is running and healthy"
+      },
+      "response": []
+    },
+    {
+      "name": "Parse Document",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Document file to parse (DOCX, PDF, etc.)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/parse-document",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "parse-document"]
+        },
+        "description": "Upload a document and extract text content using Docling"
+      },
+      "response": []
+    },
+    {
+      "name": "Extract Fields",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"document_text\": \"Quality Management Procedure\\nDocument Number: QMP-001\\nRevision: 1.0\\nEffective Date: 2025-01-01\\nDepartment: Quality Assurance\\nAuthor: John Doe\\nPurpose: To establish quality procedures\\nScope: All manufacturing processes\",\n  \"fields_to_extract\": [\n    \"document_title\",\n    \"document_number\",\n    \"revision_number\",\n    \"effective_date\",\n    \"department\",\n    \"author\",\n    \"purpose\",\n    \"scope\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/extract-fields",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "extract-fields"]
+        },
+        "description": "Extract specific fields from document text using IBM Granite LLM"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate ISO Template",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"document_type\": \"quality_system_record\",\n  \"extracted_fields\": {\n    \"document_title\": \"Quality Management Procedure\",\n    \"document_number\": \"QMP-001\",\n    \"revision_number\": \"1.0\",\n    \"effective_date\": \"2025-01-01\",\n    \"department\": \"Quality Assurance\",\n    \"author\": \"John Doe\",\n    \"purpose\": \"To establish quality procedures\",\n    \"scope\": \"All manufacturing processes\"\n  },\n  \"iso_standard\": \"ISO 9001:2015\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/generate-iso-template",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "generate-iso-template"]
+        },
+        "description": "Generate an ISO-compliant document template using extracted fields"
+      },
+      "response": []
+    },
+    {
+      "name": "Complete Processing Pipeline",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Document file to process"
+            },
+            {
+              "key": "iso_standard",
+              "value": "ISO 9001:2015",
+              "type": "text",
+              "description": "ISO standard to follow"
+            },
+            {
+              "key": "document_type",
+              "value": "quality_system_record",
+              "type": "text",
+              "description": "Type of ISO document to generate"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/process-complete",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "process-complete"]
+        },
+        "description": "Complete document processing pipeline: parse, extract fields, and generate ISO template"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}
+
