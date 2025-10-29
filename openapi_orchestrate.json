@@ -42,6 +42,56 @@
         }
       }
     },
+    "/api/v1/debug-upload": {
+      "post": {
+        "operationId": "debugUpload",
+        "summary": "Debug file upload",
+        "description": "Debug endpoint to test what Orchestrate is sending",
+        "tags": ["System"],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Test file"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "Test ISO standard"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Test document type"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debug information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/parse-document": {
       "post": {
         "operationId": "parseDocument",
@@ -282,30 +332,6 @@
         "summary": "Complete pipeline (RECOMMENDED)",
         "description": "Upload a file and automatically parse, extract fields, and generate ISO template in one step",
         "tags": ["Complete Processing"],
-        "parameters": [
-          {
-            "name": "iso_standard",
-            "in": "query",
-            "description": "ISO standard to follow",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "ISO 9001:2015",
-              "example": "ISO 9001:2015"
-            }
-          },
-          {
-            "name": "document_type",
-            "in": "query",
-            "description": "Type of ISO document to generate",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "quality_system_record",
-              "example": "quality_system_record"
-            }
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -318,6 +344,18 @@
                     "type": "string",
                     "format": "binary",
                     "description": "Document file to process (DOCX, PDF, etc.)"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
                   }
                 }
               },

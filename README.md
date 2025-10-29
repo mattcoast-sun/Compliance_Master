@@ -7,6 +7,8 @@ An AI-powered document processing system that extracts information from document
 - **Document Parsing**: Extract text from DOCX, PDF, and other document formats using Docling
 - **AI Field Extraction**: Use IBM Granite LLM to intelligently extract structured information
 - **ISO Template Generation**: Generate ISO-compliant document templates (e.g., quality system records)
+- **Quality Validation**: Automated quality checks against ISO compliance rules
+- **Complete Workflow**: All-in-one endpoint that executes all steps with a single file upload
 - **WatsonX Orchestrate Compatible**: OpenAPI 3.0.3 specification with proper operation IDs
 - **RESTful API**: FastAPI-based endpoints with automatic documentation
 
@@ -34,7 +36,13 @@ An AI-powered document processing system that extracts information from document
          │
          ▼
 ┌─────────────────┐
-│   ISO Document  │
+│ IBM Granite LLM │ ───► Quality Check & Validation
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ ISO Document +  │
+│ Quality Report  │
 └─────────────────┘
 ```
 
@@ -197,14 +205,105 @@ Generate an ISO-compliant document template using extracted fields.
 }
 ```
 
-### 5. Complete Processing Pipeline
+### 5. Check Quality
+```
+POST /api/v1/check-quality
+```
+Validate a generated ISO template against quality rules and ISO standards.
+
+**Request**:
+```json
+{
+  "generated_template": "...",
+  "extracted_fields": { ... },
+  "document_type": "quality_system_record",
+  "iso_standard": "ISO 9001:2015"
+}
+```
+
+**Response**:
+```json
+{
+  "overall_score": 85.5,
+  "quality_grade": "B",
+  "total_rules_checked": 12,
+  "rules_passed": 10,
+  "rules_failed": 2,
+  "violations": [ ... ],
+  "recommendations": [ ... ],
+  "success": true,
+  "message": "Quality check completed with grade B"
+}
+```
+
+### 6. Complete Processing Pipeline (Without Quality Check)
 ```
 POST /api/v1/process-complete
 ```
-Upload a document and complete the entire pipeline (parse, extract, generate) in one operation.
+Upload a document and complete the pipeline (parse, extract, generate) in one operation.
 
 **Request**: Multipart form data with file and optional parameters
 **Response**: Same as Generate ISO Template
+
+### 7. Complete Workflow (All Steps + Quality Check) ⭐ NEW
+```
+POST /api/v1/workflow-complete
+```
+**The most comprehensive endpoint** - Upload a document and execute the complete workflow including quality validation in a single operation.
+
+This endpoint performs all four steps automatically:
+1. Parse document (extract text and metadata)
+2. Extract fields using AI
+3. Generate ISO-compliant template
+4. Run quality checks and validation
+
+**Request**: Multipart form data
+- `file`: Document to process (DOCX, PDF, etc.) - **Required**
+- `iso_standard`: ISO standard to follow (default: "ISO 9001:2015") - Optional
+- `document_type`: Type of document (default: "quality_system_record") - Optional
+
+**Example using cURL**:
+```bash
+curl -X POST "http://localhost:8765/api/v1/workflow-complete" \
+  -F "file=@sample_document.docx" \
+  -F "iso_standard=ISO 9001:2015" \
+  -F "document_type=quality_system_record"
+```
+
+**Response**:
+```json
+{
+  "extracted_text": "...",
+  "document_metadata": { ... },
+  "extracted_fields": { ... },
+  "generated_template": "...",
+  "document_type": "quality_system_record",
+  "iso_standard": "ISO 9001:2015",
+  "quality_score": 85.5,
+  "quality_grade": "B",
+  "total_rules_checked": 12,
+  "rules_passed": 10,
+  "rules_failed": 2,
+  "violations": [ ... ],
+  "recommendations": [ ... ],
+  "source_document": "sample_document.docx",
+  "timestamp": "2025-10-29T12:34:56.789Z",
+  "success": true,
+  "message": "Complete workflow executed successfully with quality grade B",
+  "saved_file_path": "outputs/complete_workflow_quality_system_record_20251029_123456.json"
+}
+```
+
+**Quick Test**:
+```bash
+# Using the provided test script
+python test_workflow_complete.py
+
+# Or using the shell script
+./test_workflow_complete.sh
+```
+
+See [WORKFLOW_COMPLETE_API.md](WORKFLOW_COMPLETE_API.md) for detailed documentation and examples.
 
 ## WatsonX Orchestrate Integration
 

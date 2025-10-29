@@ -2,7 +2,7 @@
 FastAPI application for Compliance Master
 WatsonX Orchestrate compatible API with OpenAPI 3.0.3 specification
 """
-from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
@@ -56,6 +56,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request logging middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Query params: {dict(request.query_params)}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
 
 # Initialize services
 document_parser = DocumentParser()
@@ -116,6 +126,40 @@ async def health_check():
         status="healthy",
         version=settings.api_version
     )
+
+
+@app.post(
+    "/api/v1/debug-upload",
+    tags=["System"],
+    summary="Debug file upload (for testing)",
+    description="Debug endpoint to see what's being received from Orchestrate"
+)
+async def debug_upload(
+    file: UploadFile = File(None),
+    iso_standard: str = Form(None),
+    document_type: str = Form(None)
+):
+    """Debug endpoint to inspect incoming requests"""
+    file_size = 0
+    if file:
+        content = await file.read()
+        file_size = len(content)
+        await file.seek(0)  # Reset for potential reuse
+    
+    result = {
+        "received": {
+            "file": {
+                "provided": file is not None,
+                "filename": file.filename if file else None,
+                "content_type": file.content_type if file else None,
+                "size": file_size
+            },
+            "iso_standard": iso_standard,
+            "document_type": document_type
+        }
+    }
+    logger.info(f"Debug upload received: {result}")
+    return result
 
 
 @app.post(
@@ -299,8 +343,8 @@ async def generate_iso_template(request: ISOTemplateRequest):
 )
 async def process_complete(
     file: UploadFile = File(..., description="Document file to process"),
-    iso_standard: str = Query("ISO 9001:2015", description="ISO standard to follow"),
-    document_type: str = Query("quality_system_record", description="Type of ISO document to generate")
+    iso_standard: str = Form("ISO 9001:2015", description="ISO standard to follow"),
+    document_type: str = Form("quality_system_record", description="Type of ISO document to generate")
 ):
     """
     Complete document processing pipeline.
@@ -312,6 +356,17 @@ async def process_complete(
     
     This is a convenience endpoint for end-to-end processing.
     """
+    # Log what we received
+    logger.info(f"process_complete called with file={file.filename if file else 'None'}, iso_standard={iso_standard}, document_type={document_type}")
+    
+    # Validate file
+    if not file or not file.filename:
+        logger.error("No file provided to process_complete")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File is required. Please upload a document file."
+        )
+    
     temp_file = None
     try:
         # Step 1: Parse document
