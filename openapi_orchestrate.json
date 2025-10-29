@@ -62,6 +62,11 @@
                     "description": "Document file to parse (DOCX, PDF, etc.)"
                   }
                 }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
               }
             }
           }
@@ -277,6 +282,30 @@
         "summary": "Complete pipeline (RECOMMENDED)",
         "description": "Upload a file and automatically parse, extract fields, and generate ISO template in one step",
         "tags": ["Complete Processing"],
+        "parameters": [
+          {
+            "name": "iso_standard",
+            "in": "query",
+            "description": "ISO standard to follow",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ISO 9001:2015",
+              "example": "ISO 9001:2015"
+            }
+          },
+          {
+            "name": "document_type",
+            "in": "query",
+            "description": "Type of ISO document to generate",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "quality_system_record",
+              "example": "quality_system_record"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -289,19 +318,12 @@
                     "type": "string",
                     "format": "binary",
                     "description": "Document file to process (DOCX, PDF, etc.)"
-                  },
-                  "iso_standard": {
-                    "type": "string",
-                    "default": "ISO 9001:2015",
-                    "description": "ISO standard to follow",
-                    "example": "ISO 9001:2015"
-                  },
-                  "document_type": {
-                    "type": "string",
-                    "default": "quality_system_record",
-                    "description": "Type of ISO document to generate",
-                    "example": "quality_system_record"
                   }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
                 }
               }
             }

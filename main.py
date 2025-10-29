@@ -2,7 +2,7 @@
 FastAPI application for Compliance Master
 WatsonX Orchestrate compatible API with OpenAPI 3.0.3 specification
 """
-from fastapi import FastAPI, File, UploadFile, HTTPException, status
+from fastapi import FastAPI, File, UploadFile, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
@@ -23,7 +23,8 @@ from models import (
     HealthCheckResponse,
     QualityCheckRequest,
     QualityCheckResponse,
-    RuleViolation
+    RuleViolation,
+    CompleteWorkflowResponse
 )
 from document_parser import DocumentParser
 from llm_service import GraniteLLMService
@@ -298,8 +299,8 @@ async def generate_iso_template(request: ISOTemplateRequest):
 )
 async def process_complete(
     file: UploadFile = File(..., description="Document file to process"),
-    iso_standard: str = "ISO 9001:2015",
-    document_type: str = "quality_system_record"
+    iso_standard: str = Query("ISO 9001:2015", description="ISO standard to follow"),
+    document_type: str = Query("quality_system_record", description="Type of ISO document to generate")
 ):
     """
     Complete document processing pipeline.
@@ -534,6 +535,223 @@ async def check_quality(request: QualityCheckRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check quality: {str(e)}"
         )
+
+
+@app.post(
+    "/api/v1/workflow-complete",
+    response_model=CompleteWorkflowResponse,
+    tags=["Complete Workflow"],
+    summary="Complete workflow with all steps and quality check",
+    description="Upload a document and execute the complete workflow: parse, extract fields, generate ISO template, and run quality check",
+    operation_id="workflowComplete"
+)
+async def workflow_complete(
+    file: UploadFile = File(..., description="Document file to process (DOCX, PDF, etc.)"),
+    iso_standard: str = "ISO 9001:2015",
+    document_type: str = "quality_system_record"
+):
+    """
+    Complete workflow with all processing steps in one operation.
+    
+    This endpoint combines all operations in sequence:
+    1. Parse the uploaded document and extract text
+    2. Extract relevant fields using AI
+    3. Generate an ISO-compliant template
+    4. Run quality checks on the generated template
+    
+    This is the most comprehensive endpoint for end-to-end document processing
+    with quality validation.
+    """
+    temp_file = None
+    temp_file_path = None
+    
+    try:
+        # Validate file
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No file provided"
+            )
+        
+        logger.info(f"Starting complete workflow for file: {file.filename}")
+        
+        # Step 1: Parse document
+        logger.info("Step 1: Parsing document...")
+        suffix = Path(file.filename).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        extracted_text, metadata = document_parser.parse_document(temp_file_path)
+        logger.info(f"Document parsed successfully. Extracted {len(extracted_text)} characters.")
+        
+        # Step 2: Extract fields
+        logger.info("Step 2: Extracting fields...")
+        default_fields = [
+            "document_title",
+            "document_number",
+            "revision_number",
+            "effective_date",
+            "department",
+            "author",
+            "purpose",
+            "scope"
+        ]
+        
+        extracted_fields_data = llm_service.extract_fields(
+            document_text=extracted_text,
+            fields_to_extract=default_fields
+        )
+        
+        # Convert to dictionary
+        fields_dict = {
+            field["field_name"]: field["value"]
+            for field in extracted_fields_data
+        }
+        logger.info(f"Extracted {len(fields_dict)} fields successfully.")
+        
+        # Step 3: Generate ISO template
+        logger.info("Step 3: Generating ISO template...")
+        generated_template = llm_service.generate_iso_template(
+            document_type=document_type,
+            extracted_fields=fields_dict,
+            iso_standard=iso_standard
+        )
+        logger.info("ISO template generated successfully.")
+        
+        # Step 4: Run quality check
+        logger.info("Step 4: Running quality check...")
+        rules_text = format_rules_for_prompt()
+        
+        quality_results = llm_service.check_quality(
+            generated_template=generated_template,
+            extracted_fields=fields_dict,
+            document_type=document_type,
+            iso_standard=iso_standard,
+            quality_rules=rules_text
+        )
+        
+        # Process quality check violations
+        violations = []
+        rules_passed = 0
+        rules_failed = 0
+        
+        for violation_data in quality_results.get("violations", []):
+            violation = RuleViolation(**violation_data)
+            violations.append(violation)
+            if violation.passed:
+                rules_passed += 1
+            else:
+                rules_failed += 1
+        
+        total_rules_checked = len(violations)
+        
+        # Calculate overall quality score (weighted by severity)
+        if total_rules_checked > 0:
+            severity_weights = {"error": 10, "warning": 5, "info": 2}
+            max_score = sum(
+                severity_weights.get(v.severity, 1) 
+                for v in violations
+            )
+            actual_score = sum(
+                severity_weights.get(v.severity, 1) 
+                for v in violations if v.passed
+            )
+            quality_score = (actual_score / max_score * 100) if max_score > 0 else 0
+        else:
+            quality_score = 100.0
+        
+        # Determine quality grade
+        if quality_score >= 90:
+            quality_grade = "A"
+        elif quality_score >= 80:
+            quality_grade = "B"
+        elif quality_score >= 70:
+            quality_grade = "C"
+        elif quality_score >= 60:
+            quality_grade = "D"
+        else:
+            quality_grade = "F"
+        
+        logger.info(f"Quality check completed with grade {quality_grade} (score: {quality_score:.2f})")
+        
+        # Prepare complete response data
+        timestamp = datetime.now().isoformat()
+        response_data = {
+            "extracted_text": extracted_text,
+            "document_metadata": metadata,
+            "extracted_fields": fields_dict,
+            "generated_template": generated_template,
+            "document_type": document_type,
+            "iso_standard": iso_standard,
+            "quality_score": quality_score,
+            "quality_grade": quality_grade,
+            "total_rules_checked": total_rules_checked,
+            "rules_passed": rules_passed,
+            "rules_failed": rules_failed,
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "rule_name": v.rule_name,
+                    "severity": v.severity,
+                    "description": v.description,
+                    "violation_details": v.violation_details,
+                    "passed": v.passed
+                }
+                for v in violations
+            ],
+            "recommendations": quality_results.get("recommendations", []),
+            "source_document": file.filename,
+            "timestamp": timestamp,
+            "success": True,
+            "message": f"Complete workflow executed successfully with quality grade {quality_grade}"
+        }
+        
+        # Save complete workflow results to JSON file
+        saved_path = save_output_json(response_data, prefix=f"complete_workflow_{document_type}")
+        
+        logger.info(f"Complete workflow finished successfully for {file.filename}")
+        
+        return CompleteWorkflowResponse(
+            extracted_text=extracted_text,
+            document_metadata=metadata,
+            extracted_fields=fields_dict,
+            generated_template=generated_template,
+            document_type=document_type,
+            iso_standard=iso_standard,
+            quality_score=quality_score,
+            quality_grade=quality_grade,
+            total_rules_checked=total_rules_checked,
+            rules_passed=rules_passed,
+            rules_failed=rules_failed,
+            violations=violations,
+            recommendations=quality_results.get("recommendations", []),
+            source_document=file.filename,
+            timestamp=timestamp,
+            success=True,
+            message=f"Complete workflow executed successfully with quality grade {quality_grade}",
+            saved_file_path=saved_path
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as is
+        raise
+    except Exception as e:
+        logger.error(f"Error in complete workflow: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to complete workflow: {str(e)}"
+        )
+    
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                logger.info(f"Cleaned up temporary file: {temp_file_path}")
+            except Exception as e:
+                logger.warning(f"Failed to delete temporary file: {str(e)}")
 
 
 if __name__ == "__main__":

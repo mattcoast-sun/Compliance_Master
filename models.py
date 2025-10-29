@@ -113,3 +113,34 @@ class QualityCheckResponse(BaseModel):
     message: Optional[str] = Field(None, description="Additional information")
     saved_file_path: Optional[str] = Field(None, description="Path to the saved quality check report")
 
+
+class CompleteWorkflowResponse(BaseModel):
+    """Response model for complete workflow with all steps"""
+    # Document parsing results
+    extracted_text: str = Field(..., description="Extracted text from the document")
+    document_metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
+    
+    # Field extraction results
+    extracted_fields: Dict[str, str] = Field(..., description="Dictionary of extracted fields")
+    
+    # ISO template generation results
+    generated_template: str = Field(..., description="The generated ISO document template")
+    document_type: str = Field(..., description="Type of document generated")
+    iso_standard: str = Field(..., description="ISO standard followed")
+    
+    # Quality check results
+    quality_score: float = Field(..., description="Overall quality score (0-100)")
+    quality_grade: str = Field(..., description="Quality grade: A, B, C, D, F")
+    total_rules_checked: int = Field(..., description="Total number of rules checked")
+    rules_passed: int = Field(..., description="Number of rules passed")
+    rules_failed: int = Field(..., description="Number of rules failed")
+    violations: List[RuleViolation] = Field(..., description="List of rule violations")
+    recommendations: List[str] = Field(default_factory=list, description="Recommendations for improvement")
+    
+    # General response fields
+    source_document: str = Field(..., description="Original document filename")
+    timestamp: str = Field(..., description="Timestamp of processing")
+    success: bool = Field(..., description="Whether the entire workflow was successful")
+    message: str = Field(..., description="Status message")
+    saved_file_path: Optional[str] = Field(None, description="Path to the saved output file")
+
