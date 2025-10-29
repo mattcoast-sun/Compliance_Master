@@ -953,6 +953,207 @@ async def workflow_complete(
                 logger.warning(f"Failed to delete temporary file: {str(e)}")
 
 
+@app.post(
+    "/api/v1/workflow-preloaded",
+    response_model=CompleteWorkflowResponse,
+    tags=["Complete Workflow"],
+    summary="Complete workflow with pre-loaded document (Orchestrate-friendly)",
+    description="Process a pre-loaded document through the complete workflow: parse, extract, generate, and quality check",
+    operation_id="workflowPreloaded"
+)
+async def workflow_preloaded(request: PreloadedDocumentRequest):
+    """
+    Complete workflow using a pre-loaded sample document.
+    
+    This endpoint combines all operations in sequence:
+    1. Parse the pre-loaded document and extract text
+    2. Extract relevant fields using AI
+    3. Generate an ISO-compliant template
+    4. Run quality checks on the generated template
+    
+    Perfect for watsonx Orchestrate - no file upload needed!
+    """
+    logger.info(f"Starting complete workflow for pre-loaded document: {request.document_id}")
+    
+    # Validate document ID
+    if request.document_id not in PRELOADED_DOCUMENTS:
+        available_ids = ", ".join(PRELOADED_DOCUMENTS.keys())
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid document_id. Available options: {available_ids}"
+        )
+    
+    doc_info = PRELOADED_DOCUMENTS[request.document_id]
+    file_path = Path(doc_info["path"])
+    
+    # Check if file exists
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pre-loaded document file not found: {file_path}"
+        )
+    
+    try:
+        # Step 1: Parse document
+        logger.info(f"Step 1: Parsing document from {file_path}...")
+        extracted_text, metadata = document_parser.parse_document(str(file_path))
+        logger.info(f"Document parsed successfully. Extracted {len(extracted_text)} characters.")
+        
+        # Step 2: Extract fields
+        logger.info("Step 2: Extracting fields...")
+        default_fields = [
+            "document_title",
+            "document_number",
+            "revision_number",
+            "effective_date",
+            "department",
+            "author",
+            "purpose",
+            "scope"
+        ]
+        
+        extracted_fields_data = llm_service.extract_fields(
+            document_text=extracted_text,
+            fields_to_extract=default_fields
+        )
+        
+        # Convert to dictionary
+        fields_dict = {
+            field["field_name"]: field["value"]
+            for field in extracted_fields_data
+        }
+        logger.info(f"Extracted {len(fields_dict)} fields successfully.")
+        
+        # Step 3: Generate ISO template
+        logger.info("Step 3: Generating ISO template...")
+        generated_template = llm_service.generate_iso_template(
+            document_type=request.document_type,
+            extracted_fields=fields_dict,
+            iso_standard=request.iso_standard
+        )
+        logger.info("ISO template generated successfully.")
+        
+        # Step 4: Run quality check
+        logger.info("Step 4: Running quality check...")
+        rules_text = format_rules_for_prompt()
+        
+        quality_results = llm_service.check_quality(
+            generated_template=generated_template,
+            extracted_fields=fields_dict,
+            document_type=request.document_type,
+            iso_standard=request.iso_standard,
+            quality_rules=rules_text
+        )
+        
+        # Process quality check violations
+        violations = []
+        rules_passed = 0
+        rules_failed = 0
+        
+        for check in quality_results.get("checks", []):
+            passed = check.get("passed", False)
+            if passed:
+                rules_passed += 1
+            else:
+                rules_failed += 1
+                violations.append(
+                    RuleViolation(
+                        rule_id=check.get("rule_id", ""),
+                        rule_name=check.get("rule_name", ""),
+                        severity=check.get("severity", "error"),
+                        description=check.get("description", ""),
+                        violation_details=check.get("details", ""),
+                        passed=passed
+                    )
+                )
+        
+        total_rules_checked = rules_passed + rules_failed
+        quality_score = (rules_passed / total_rules_checked * 100) if total_rules_checked > 0 else 0
+        
+        # Determine quality grade
+        if quality_score >= 90:
+            quality_grade = "A"
+        elif quality_score >= 80:
+            quality_grade = "B"
+        elif quality_score >= 70:
+            quality_grade = "C"
+        elif quality_score >= 60:
+            quality_grade = "D"
+        else:
+            quality_grade = "F"
+        
+        timestamp = datetime.now().isoformat()
+        
+        logger.info(f"Quality check completed. Score: {quality_score:.1f}% (Grade: {quality_grade})")
+        
+        # Prepare complete response data
+        response_data = {
+            "extracted_text": extracted_text,
+            "document_metadata": metadata,
+            "extracted_fields": fields_dict,
+            "generated_template": generated_template,
+            "document_type": request.document_type,
+            "iso_standard": request.iso_standard,
+            "quality_score": quality_score,
+            "quality_grade": quality_grade,
+            "total_rules_checked": total_rules_checked,
+            "rules_passed": rules_passed,
+            "rules_failed": rules_failed,
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "rule_name": v.rule_name,
+                    "severity": v.severity,
+                    "description": v.description,
+                    "violation_details": v.violation_details,
+                    "passed": v.passed
+                }
+                for v in violations
+            ],
+            "recommendations": quality_results.get("recommendations", []),
+            "source_document": f"Pre-loaded: {request.document_id} ({doc_info['description']})",
+            "timestamp": timestamp,
+            "success": True,
+            "message": f"Complete workflow executed successfully with quality grade {quality_grade}"
+        }
+        
+        # Save complete workflow results to JSON file
+        saved_path = save_output_json(response_data, prefix=f"complete_workflow_preloaded_{request.document_id}")
+        
+        logger.info(f"Complete workflow finished successfully for pre-loaded document: {request.document_id}")
+        
+        return CompleteWorkflowResponse(
+            extracted_text=extracted_text,
+            document_metadata=metadata,
+            extracted_fields=fields_dict,
+            generated_template=generated_template,
+            document_type=request.document_type,
+            iso_standard=request.iso_standard,
+            quality_score=quality_score,
+            quality_grade=quality_grade,
+            total_rules_checked=total_rules_checked,
+            rules_passed=rules_passed,
+            rules_failed=rules_failed,
+            violations=violations,
+            recommendations=quality_results.get("recommendations", []),
+            source_document=f"Pre-loaded: {request.document_id}",
+            timestamp=timestamp,
+            success=True,
+            message=f"Complete workflow executed successfully with quality grade {quality_grade}",
+            saved_file_path=saved_path
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as is
+        raise
+    except Exception as e:
+        logger.error(f"Error in complete workflow for pre-loaded document: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to complete workflow: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8765)
