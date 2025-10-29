@@ -20,10 +20,13 @@ class Settings(BaseSettings):
     api_title: str = "Compliance Master API"
     api_version: str = "1.0.0"
     api_description: str = "AI-powered document processing and ISO template generation"
+    port: int = 8765
+    host: str = "0.0.0.0"
     
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"  # Allow extra fields from environment
 
 
 settings = Settings()
