@@ -10,6 +10,22 @@ class DocumentParseRequest(BaseModel):
     pass
 
 
+class PreloadedDocumentRequest(BaseModel):
+    """Request model for processing pre-loaded sample documents"""
+    document_id: str = Field(
+        ..., 
+        description="ID of the pre-loaded document to process (e.g., 'sample_calibration', 'non_compliant_iso')"
+    )
+    iso_standard: str = Field(
+        default="ISO 9001:2015", 
+        description="ISO standard to follow"
+    )
+    document_type: str = Field(
+        default="quality_system_record", 
+        description="Type of ISO document to generate"
+    )
+
+
 class DocumentParseResponse(BaseModel):
     """Response model for document parsing"""
     extracted_text: str = Field(..., description="Extracted text from the document")

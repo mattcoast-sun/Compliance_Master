@@ -42,6 +42,128 @@
         }
       }
     },
+    "/api/v1/list-preloaded-documents": {
+      "get": {
+        "operationId": "listPreloadedDocuments",
+        "summary": "List available sample documents",
+        "description": "Get a list of all pre-loaded sample documents available for processing",
+        "tags": ["Complete Processing"],
+        "responses": {
+          "200": {
+            "description": "List of available documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available_documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "document_id": {
+                            "type": "string",
+                            "example": "non_compliant_iso"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "filename": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/process-preloaded": {
+      "post": {
+        "operationId": "processPreloaded",
+        "summary": "Process pre-loaded document (RECOMMENDED for Orchestrate)",
+        "description": "Process a pre-loaded sample document by ID - no file upload needed! Perfect for watsonx Orchestrate.",
+        "tags": ["Complete Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["document_id"],
+                "properties": {
+                  "document_id": {
+                    "type": "string",
+                    "description": "ID of pre-loaded document",
+                    "example": "non_compliant_iso",
+                    "enum": ["sample_calibration", "non_compliant_iso"]
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "default": "ISO 9001:2015",
+                    "description": "ISO standard to follow",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "default": "quality_system_record",
+                    "description": "Type of ISO document to generate",
+                    "example": "quality_system_record"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "generated_template": {
+                      "type": "string",
+                      "description": "The complete ISO-compliant document template"
+                    },
+                    "document_type": {
+                      "type": "string"
+                    },
+                    "iso_standard": {
+                      "type": "string"
+                    },
+                    "saved_file_path": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid document_id"
+          },
+          "500": {
+            "description": "Server error during processing"
+          }
+        }
+      }
+    },
     "/api/v1/debug-upload": {
       "post": {
         "operationId": "debugUpload",

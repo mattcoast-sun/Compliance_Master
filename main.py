@@ -24,7 +24,8 @@ from models import (
     QualityCheckRequest,
     QualityCheckResponse,
     RuleViolation,
-    CompleteWorkflowResponse
+    CompleteWorkflowResponse,
+    PreloadedDocumentRequest
 )
 from document_parser import DocumentParser
 from llm_service import GraniteLLMService
@@ -113,6 +114,20 @@ def save_output_json(data: dict, prefix: str = "output") -> str:
     return str(filepath)
 
 
+# Pre-loaded sample documents for demonstration
+# Maps document IDs to actual file paths
+PRELOADED_DOCUMENTS = {
+    "sample_calibration": {
+        "path": "sample_device_calibration_procedure.docx",
+        "description": "Sample device calibration procedure document"
+    },
+    "non_compliant_iso": {
+        "path": "non_compliant_iso_doc.docx",
+        "description": "Non-compliant ISO document for testing quality checks"
+    }
+}
+
+
 @app.get(
     "/health",
     response_model=HealthCheckResponse,
@@ -160,6 +175,135 @@ async def debug_upload(
     }
     logger.info(f"Debug upload received: {result}")
     return result
+
+
+@app.post(
+    "/api/v1/process-preloaded",
+    response_model=ISOTemplateResponse,
+    tags=["Complete Processing"],
+    summary="Process pre-loaded sample document (Orchestrate-friendly)",
+    description="Process a pre-loaded sample document by ID - perfect for watsonx Orchestrate demos",
+    operation_id="processPreloaded"
+)
+async def process_preloaded(request: PreloadedDocumentRequest):
+    """
+    Process a pre-loaded sample document.
+    
+    This endpoint is designed for watsonx Orchestrate compatibility.
+    Instead of uploading files, users simply provide a document ID.
+    
+    Available document IDs:
+    - 'sample_calibration': Sample device calibration procedure
+    - 'non_compliant_iso': Non-compliant ISO document for testing
+    """
+    logger.info(f"Processing pre-loaded document: {request.document_id}")
+    
+    # Validate document ID
+    if request.document_id not in PRELOADED_DOCUMENTS:
+        available_ids = ", ".join(PRELOADED_DOCUMENTS.keys())
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid document_id. Available options: {available_ids}"
+        )
+    
+    doc_info = PRELOADED_DOCUMENTS[request.document_id]
+    file_path = Path(doc_info["path"])
+    
+    # Check if file exists
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pre-loaded document file not found: {file_path}"
+        )
+    
+    try:
+        # Step 1: Parse document
+        logger.info(f"Parsing document from: {file_path}")
+        extracted_text, metadata = document_parser.parse_document(str(file_path))
+        
+        # Step 2: Extract fields
+        default_fields = [
+            "document_title",
+            "document_number",
+            "revision_number",
+            "effective_date",
+            "department",
+            "author",
+            "purpose",
+            "scope"
+        ]
+        
+        extracted_fields_data = llm_service.extract_fields(
+            document_text=extracted_text,
+            fields_to_extract=default_fields
+        )
+        
+        # Convert to dictionary
+        fields_dict = {
+            field["field_name"]: field["value"]
+            for field in extracted_fields_data
+        }
+        
+        # Step 3: Generate ISO template
+        generated_template = llm_service.generate_iso_template(
+            document_type=request.document_type,
+            extracted_fields=fields_dict,
+            iso_standard=request.iso_standard
+        )
+        
+        # Prepare response data
+        response_data = {
+            "generated_template": generated_template,
+            "document_type": request.document_type,
+            "iso_standard": request.iso_standard,
+            "extracted_fields": fields_dict,
+            "source_document": f"Pre-loaded: {request.document_id} ({doc_info['description']})",
+            "document_metadata": metadata,
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "message": f"Successfully processed pre-loaded document: {request.document_id}"
+        }
+        
+        # Save to JSON file
+        saved_path = save_output_json(response_data, prefix=f"preloaded_{request.document_id}_{request.document_type}")
+        
+        return ISOTemplateResponse(
+            generated_template=generated_template,
+            document_type=request.document_type,
+            iso_standard=request.iso_standard,
+            success=True,
+            message=f"Successfully processed pre-loaded document: {request.document_id}",
+            saved_file_path=saved_path
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing pre-loaded document: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process document: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/list-preloaded-documents",
+    tags=["Complete Processing"],
+    summary="List available pre-loaded documents",
+    description="Get a list of all available pre-loaded sample documents",
+    operation_id="listPreloadedDocuments"
+)
+async def list_preloaded_documents():
+    """List all available pre-loaded sample documents"""
+    return {
+        "available_documents": [
+            {
+                "document_id": doc_id,
+                "description": doc_info["description"],
+                "filename": doc_info["path"]
+            }
+            for doc_id, doc_info in PRELOADED_DOCUMENTS.items()
+        ],
+        "message": "Use these document IDs with the /api/v1/process-preloaded endpoint"
+    }
 
 
 @app.post(
