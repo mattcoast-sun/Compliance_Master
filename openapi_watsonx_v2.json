@@ -1,0 +1,1217 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Compliance Master API - WatsonX Orchestrate Compatible",
+    "description": "AI-powered document processing and ISO template generation for watsonx Orchestrate. Parse documents, extract fields, generate ISO-compliant templates, and run quality checks - all with IBM Granite LLM.",
+    "version": "2.0.0",
+    "contact": {
+      "name": "Compliance Master API Support",
+      "email": "support@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8765",
+      "description": "Local development server"
+    },
+    {
+      "url": "https://your-production-url.com",
+      "description": "Production server (update with your Railway URL)"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check endpoint",
+        "description": "Check if the API is running and healthy",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "2.0.0"
+                    }
+                  },
+                  "required": ["status", "version"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/list-preloaded-documents": {
+      "get": {
+        "operationId": "listPreloadedDocuments",
+        "summary": "List available pre-loaded documents",
+        "description": "Get a list of all available pre-loaded sample documents that can be used with /api/v1/process-preloaded and /api/v1/workflow-preloaded endpoints",
+        "tags": ["Complete Processing"],
+        "responses": {
+          "200": {
+            "description": "List of available pre-loaded documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available_documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "document_id": {
+                            "type": "string",
+                            "description": "Unique identifier for the document",
+                            "example": "sample_calibration"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Description of the document",
+                            "example": "Sample device calibration procedure document"
+                          },
+                          "filename": {
+                            "type": "string",
+                            "description": "Actual filename of the document",
+                            "example": "sample_device_calibration_procedure.docx"
+                          }
+                        },
+                        "required": ["document_id", "description", "filename"]
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Use these document IDs with the /api/v1/process-preloaded endpoint"
+                    }
+                  },
+                  "required": ["available_documents", "message"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/process-preloaded": {
+      "post": {
+        "operationId": "processPreloaded",
+        "summary": "Process pre-loaded sample document (Orchestrate-friendly)",
+        "description": "Process a pre-loaded sample document by ID - perfect for watsonx Orchestrate demos. No file upload needed! Parse document, extract fields, and generate ISO template in one operation.",
+        "tags": ["Complete Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["document_id"],
+                "properties": {
+                  "document_id": {
+                    "type": "string",
+                    "description": "ID of the pre-loaded document to process. Use /api/v1/list-preloaded-documents to see available options.",
+                    "example": "sample_calibration",
+                    "enum": ["sample_calibration", "non_compliant_iso"]
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow for template generation",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ISOTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid document_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-preloaded": {
+      "post": {
+        "operationId": "workflowPreloaded",
+        "summary": "Complete workflow with pre-loaded document (BEST for Orchestrate)",
+        "description": "Process a pre-loaded document through the COMPLETE workflow: parse, extract fields, generate ISO template, AND run quality checks - all in one! Perfect for watsonx Orchestrate - no file upload needed!",
+        "tags": ["Complete Workflow"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["document_id"],
+                "properties": {
+                  "document_id": {
+                    "type": "string",
+                    "description": "ID of the pre-loaded document to process",
+                    "example": "non_compliant_iso",
+                    "enum": ["sample_calibration", "non_compliant_iso"]
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete workflow executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteWorkflowResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid document_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during workflow execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-complete": {
+      "post": {
+        "operationId": "workflowComplete",
+        "summary": "Complete workflow with file upload",
+        "description": "Upload a document and execute the COMPLETE workflow: parse, extract fields, generate ISO template, AND run quality checks - all in one operation!",
+        "tags": ["Complete Workflow"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to process (DOCX, PDF, etc.)"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete workflow executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteWorkflowResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during workflow execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/parse-document": {
+      "post": {
+        "operationId": "parseDocument",
+        "summary": "Parse document and extract text",
+        "description": "Upload a document (DOCX, PDF, etc.) and extract its text content using Docling",
+        "tags": ["Document Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to parse (DOCX, PDF, etc.)"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document parsed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentParseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - no file provided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during parsing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extract-fields": {
+      "post": {
+        "operationId": "extractFields",
+        "summary": "Extract fields from document text",
+        "description": "Use IBM Granite LLM to extract specific fields from document text. Intelligently extracts structured information from unstructured text.",
+        "tags": ["Field Extraction"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["document_text"],
+                "properties": {
+                  "document_text": {
+                    "type": "string",
+                    "description": "The text content to extract fields from",
+                    "example": "Quality System Procedure\nDocument Number: QSP-001\nRevision: 1.0\nDepartment: Quality Assurance..."
+                  },
+                  "fields_to_extract": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of field names to extract from the document",
+                    "default": [
+                      "document_title",
+                      "document_number",
+                      "revision_number",
+                      "effective_date",
+                      "department",
+                      "author",
+                      "purpose",
+                      "scope"
+                    ],
+                    "example": [
+                      "document_title",
+                      "document_number",
+                      "revision_number",
+                      "effective_date",
+                      "department"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fields extracted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldExtractionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - empty document text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during field extraction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generate-iso-template": {
+      "post": {
+        "operationId": "generateISOTemplate",
+        "summary": "Generate ISO document template",
+        "description": "Generate an ISO-compliant document template using extracted fields and IBM Granite LLM. Creates a complete, formatted document based on ISO standards.",
+        "tags": ["ISO Template Generation"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["extracted_fields"],
+                "properties": {
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
+                  },
+                  "extracted_fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Dictionary of field names and their values extracted from the source document",
+                    "example": {
+                      "document_title": "Quality System Procedure",
+                      "document_number": "QSP-001",
+                      "revision_number": "1.0",
+                      "department": "Quality Assurance",
+                      "author": "John Doe"
+                    }
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow for template generation",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ISO template generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ISOTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - empty extracted fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during template generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/process-complete": {
+      "post": {
+        "operationId": "processComplete",
+        "summary": "Complete document processing pipeline",
+        "description": "Upload a document, extract fields, and generate ISO template in one operation. Combines parsing, field extraction, and template generation.",
+        "tags": ["Complete Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to process (DOCX, PDF, etc.)"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard to follow",
+                    "default": "ISO 9001:2015",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document to generate",
+                    "default": "quality_system_record",
+                    "example": "quality_system_record"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete processing pipeline executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ISOTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/check-quality": {
+      "post": {
+        "operationId": "checkQuality",
+        "summary": "Check quality of generated ISO template",
+        "description": "Validate a generated ISO template against quality rules using AI. Checks for missing fields, date validity, content completeness, and ISO compliance.",
+        "tags": ["Quality Assurance"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["generated_template", "document_type", "iso_standard"],
+                "properties": {
+                  "generated_template": {
+                    "type": "string",
+                    "description": "The ISO template text to validate",
+                    "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure..."
+                  },
+                  "extracted_fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "The fields used to generate the template (optional, used for enhanced validation)",
+                    "default": {},
+                    "example": {
+                      "document_title": "Quality System Procedure",
+                      "department": "Quality Assurance"
+                    }
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Type of ISO document being checked",
+                    "example": "quality_system_record"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "ISO standard the document should comply with",
+                    "example": "ISO 9001:2015"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quality check completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - empty template or invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during quality check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/debug-upload": {
+      "post": {
+        "operationId": "debugUpload",
+        "summary": "Debug file upload (for testing)",
+        "description": "Debug endpoint to see what's being received from Orchestrate. Returns information about the uploaded file and parameters.",
+        "tags": ["System"],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Test file to upload"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "description": "Test ISO standard parameter"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "description": "Test document type parameter"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debug information about the received request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "object",
+                      "properties": {
+                        "file": {
+                          "type": "object",
+                          "properties": {
+                            "provided": {
+                              "type": "boolean"
+                            },
+                            "filename": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "content_type": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "size": {
+                              "type": "integer"
+                            }
+                          }
+                        },
+                        "iso_standard": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "document_type": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "Error message describing what went wrong",
+            "example": "Failed to process document: Invalid file format"
+          }
+        },
+        "required": ["detail"]
+      },
+      "DocumentParseResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation",
+            "example": "Document parsed successfully"
+          },
+          "extracted_text": {
+            "type": "string",
+            "description": "Text content extracted from the document",
+            "example": "Quality System Procedure\n\nDocument Number: QSP-001..."
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Document metadata (filename, size, page count, etc.)",
+            "additionalProperties": true,
+            "example": {
+              "filename": "sample_document.docx",
+              "size": 45678,
+              "pages": 5
+            }
+          }
+        },
+        "required": ["success", "message", "extracted_text"]
+      },
+      "ExtractedField": {
+        "type": "object",
+        "properties": {
+          "field_name": {
+            "type": "string",
+            "description": "Name of the extracted field",
+            "example": "document_title"
+          },
+          "value": {
+            "type": "string",
+            "description": "Value of the extracted field",
+            "example": "Quality System Procedure"
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Confidence score (0-1) of the extraction",
+            "minimum": 0,
+            "maximum": 1,
+            "example": 0.95
+          }
+        },
+        "required": ["field_name", "value", "confidence"]
+      },
+      "FieldExtractionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation",
+            "example": "Fields extracted successfully"
+          },
+          "extracted_fields": {
+            "type": "array",
+            "description": "List of extracted fields with their values and confidence scores",
+            "items": {
+              "$ref": "#/components/schemas/ExtractedField"
+            }
+          }
+        },
+        "required": ["success", "message", "extracted_fields"]
+      },
+      "ISOTemplateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation",
+            "example": "ISO template generated successfully"
+          },
+          "generated_template": {
+            "type": "string",
+            "description": "The complete ISO-compliant document template",
+            "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure\nDocument Number: QSP-001..."
+          },
+          "document_type": {
+            "type": "string",
+            "description": "Type of document generated",
+            "example": "quality_system_record"
+          },
+          "iso_standard": {
+            "type": "string",
+            "description": "ISO standard followed",
+            "example": "ISO 9001:2015"
+          },
+          "extracted_fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Extracted fields used to generate the template (enables chaining to quality check)",
+            "default": {},
+            "example": {
+              "document_title": "Quality System Procedure",
+              "document_number": "QSP-001",
+              "revision_number": "2.0",
+              "effective_date": "2025-10-30",
+              "department": "Quality Assurance",
+              "author": "John Doe",
+              "purpose": "To establish quality procedures",
+              "scope": "All quality management"
+            }
+          },
+          "saved_file_path": {
+            "type": "string",
+            "description": "Path to saved output file (null if SAVE_LOCAL_COPIES=false)",
+            "nullable": true,
+            "example": "outputs/iso_template_quality_system_record_20251030_120000.json"
+          }
+        },
+        "required": ["success", "message", "generated_template", "document_type", "iso_standard"]
+      },
+      "RuleViolation": {
+        "type": "object",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "description": "Unique identifier for the quality rule",
+            "example": "RULE_001"
+          },
+          "rule_name": {
+            "type": "string",
+            "description": "Name of the quality rule",
+            "example": "Department Field Required"
+          },
+          "severity": {
+            "type": "string",
+            "description": "Severity level of the rule",
+            "enum": ["error", "warning", "info"],
+            "example": "error"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of what the rule checks",
+            "example": "Department field must be present in the document"
+          },
+          "violation_details": {
+            "type": "string",
+            "description": "Details about the violation if rule failed",
+            "example": "Department field not found in the generated template"
+          },
+          "passed": {
+            "type": "boolean",
+            "description": "Whether the rule passed (true) or failed (false)",
+            "example": false
+          }
+        },
+        "required": ["rule_id", "rule_name", "severity", "description", "violation_details", "passed"]
+      },
+      "QualityCheckResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the operation",
+            "example": "Quality check completed with grade B"
+          },
+          "overall_score": {
+            "type": "number",
+            "description": "Overall quality score (0-100), weighted by severity",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 85.5
+          },
+          "quality_grade": {
+            "type": "string",
+            "description": "Quality grade based on score: A (90-100), B (80-89), C (70-79), D (60-69), F (<60)",
+            "enum": ["A", "B", "C", "D", "F"],
+            "example": "B"
+          },
+          "total_rules_checked": {
+            "type": "integer",
+            "description": "Total number of quality rules checked",
+            "example": 12
+          },
+          "rules_passed": {
+            "type": "integer",
+            "description": "Number of rules that passed",
+            "example": 10
+          },
+          "rules_failed": {
+            "type": "integer",
+            "description": "Number of rules that failed",
+            "example": 2
+          },
+          "violations": {
+            "type": "array",
+            "description": "List of quality rule violations (includes both passed and failed rules)",
+            "items": {
+              "$ref": "#/components/schemas/RuleViolation"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "description": "List of recommendations for improving the document",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Add department information to improve traceability",
+              "Update the effective date to ensure currency"
+            ]
+          },
+          "saved_file_path": {
+            "type": "string",
+            "description": "Path to saved quality check report (null if SAVE_LOCAL_COPIES=false)",
+            "nullable": true,
+            "example": "quality_checks/quality_check_quality_system_record_20251030_120000.json"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "overall_score",
+          "quality_grade",
+          "total_rules_checked",
+          "rules_passed",
+          "rules_failed",
+          "violations",
+          "recommendations"
+        ]
+      },
+      "CompleteWorkflowResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the complete workflow was successful",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message about the workflow execution",
+            "example": "Complete workflow executed successfully with quality grade B"
+          },
+          "extracted_text": {
+            "type": "string",
+            "description": "Text content extracted from the document",
+            "example": "Quality System Procedure\n\nDocument Number: QSP-001..."
+          },
+          "document_metadata": {
+            "type": "object",
+            "description": "Metadata from the source document",
+            "additionalProperties": true,
+            "example": {
+              "filename": "sample_document.docx",
+              "size": 45678
+            }
+          },
+          "extracted_fields": {
+            "type": "object",
+            "description": "Dictionary of fields extracted from the document",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "document_title": "Quality System Procedure",
+              "document_number": "QSP-001",
+              "department": "Quality Assurance"
+            }
+          },
+          "generated_template": {
+            "type": "string",
+            "description": "The complete ISO-compliant document template",
+            "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure..."
+          },
+          "document_type": {
+            "type": "string",
+            "description": "Type of document generated",
+            "example": "quality_system_record"
+          },
+          "iso_standard": {
+            "type": "string",
+            "description": "ISO standard followed",
+            "example": "ISO 9001:2015"
+          },
+          "quality_score": {
+            "type": "number",
+            "description": "Overall quality score (0-100)",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 85.5
+          },
+          "quality_grade": {
+            "type": "string",
+            "description": "Quality grade: A, B, C, D, or F",
+            "enum": ["A", "B", "C", "D", "F"],
+            "example": "B"
+          },
+          "total_rules_checked": {
+            "type": "integer",
+            "description": "Total number of quality rules checked",
+            "example": 12
+          },
+          "rules_passed": {
+            "type": "integer",
+            "description": "Number of quality rules passed",
+            "example": 10
+          },
+          "rules_failed": {
+            "type": "integer",
+            "description": "Number of quality rules failed",
+            "example": 2
+          },
+          "violations": {
+            "type": "array",
+            "description": "List of quality rule violations",
+            "items": {
+              "$ref": "#/components/schemas/RuleViolation"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "description": "Recommendations for improving the document",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Add department information to improve traceability",
+              "Update the effective date to ensure currency"
+            ]
+          },
+          "source_document": {
+            "type": "string",
+            "description": "Original document filename or identifier",
+            "example": "sample_document.docx"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp of workflow execution (ISO 8601 format)",
+            "format": "date-time",
+            "example": "2025-10-30T12:00:00.000000"
+          },
+          "saved_file_path": {
+            "type": "string",
+            "description": "Path to saved workflow results (null if SAVE_LOCAL_COPIES=false)",
+            "nullable": true,
+            "example": "outputs/complete_workflow_quality_system_record_20251030_120000.json"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "extracted_text",
+          "document_metadata",
+          "extracted_fields",
+          "generated_template",
+          "document_type",
+          "iso_standard",
+          "quality_score",
+          "quality_grade",
+          "total_rules_checked",
+          "rules_passed",
+          "rules_failed",
+          "violations",
+          "recommendations",
+          "source_document",
+          "timestamp"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "System health, status, and debug endpoints"
+    },
+    {
+      "name": "Document Processing",
+      "description": "Parse documents and extract text content using Docling"
+    },
+    {
+      "name": "Field Extraction",
+      "description": "Extract structured fields from text using IBM Granite LLM"
+    },
+    {
+      "name": "ISO Template Generation",
+      "description": "Generate ISO-compliant document templates using AI"
+    },
+    {
+      "name": "Complete Processing",
+      "description": "End-to-end document processing pipeline (parse + extract + generate)"
+    },
+    {
+      "name": "Complete Workflow",
+      "description": "Full workflow with all steps including quality checks (RECOMMENDED)"
+    },
+    {
+      "name": "Quality Assurance",
+      "description": "Validate and check quality of generated templates against ISO standards"
+    }
+  ]
+}
+

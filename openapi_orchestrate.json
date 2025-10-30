@@ -147,6 +147,18 @@
                     "iso_standard": {
                       "type": "string"
                     },
+                    "extracted_fields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Extracted fields - use these when chaining to checkQuality",
+                      "example": {
+                        "document_title": "Device Calibration Procedure",
+                        "document_number": "CAL-001",
+                        "department": "Quality Assurance"
+                      }
+                    },
                     "saved_file_path": {
                       "type": "string"
                     }
@@ -796,6 +808,17 @@
                       "type": "string",
                       "example": "ISO 9001:2015"
                     },
+                    "extracted_fields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Extracted fields that were used to generate the template",
+                      "example": {
+                        "document_title": "Quality System Procedure",
+                        "document_number": "QSP-001"
+                      }
+                    },
                     "saved_file_path": {
                       "type": "string",
                       "description": "Path where the output was saved"
@@ -876,6 +899,18 @@
                     "iso_standard": {
                       "type": "string",
                       "example": "ISO 9001:2015"
+                    },
+                    "extracted_fields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Extracted fields from the document - use these for quality checks",
+                      "example": {
+                        "document_title": "Device Calibration Procedure",
+                        "document_number": "CAL-001",
+                        "department": "Quality Assurance"
+                      }
                     },
                     "saved_file_path": {
                       "type": "string",
