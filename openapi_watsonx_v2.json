@@ -621,8 +621,8 @@
     "/api/v1/check-quality": {
       "post": {
         "operationId": "checkQuality",
-        "summary": "Check quality of generated ISO template",
-        "description": "Validate a generated ISO template against quality rules using AI. Checks for missing fields, date validity, content completeness, and ISO compliance.",
+        "summary": "Check quality of generated ISO template with intelligent input handling",
+        "description": "Validate a generated ISO template against quality rules using IBM Granite AI. Features intelligent 3-stage processing: (1) Automatic deserialization of double-encoded JSON inputs, (2) Smart conditional LLM verification (only when issues detected), (3) Comprehensive quality validation against 15 ISO compliance rules. Handles watsonx Orchestrate chaining seamlessly. Checks for missing fields, date validity, content completeness, and ISO compliance. Expected response time: 5-10s for clean inputs, 10-20s when verification needed.",
         "tags": ["Quality Assurance"],
         "requestBody": {
           "required": true,
@@ -639,10 +639,11 @@
                   },
                   "extracted_fields": {
                     "type": "object",
+                    "nullable": true,
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "The fields used to generate the template (optional, used for enhanced validation)",
+                    "description": "The fields used to generate the template (optional, used for enhanced validation) - can be null, empty dict, or JSON string",
                     "default": {},
                     "example": {
                       "document_title": "Quality System Procedure",

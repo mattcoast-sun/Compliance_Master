@@ -2,7 +2,7 @@
 Pydantic models for request and response schemas
 """
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 
 class DocumentParseRequest(BaseModel):
@@ -102,7 +102,10 @@ class HealthCheckResponse(BaseModel):
 class QualityCheckRequest(BaseModel):
     """Request model for quality check"""
     generated_template: str = Field(..., description="The generated ISO template to check")
-    extracted_fields: Optional[Dict[str, str]] = Field(default_factory=dict, description="The extracted fields used to generate the template (accepts null, empty, or populated dict)")
+    extracted_fields: Optional[Union[Dict[str, str], str]] = Field(
+        default=None, 
+        description="The extracted fields (can be dict, JSON string, or null) - accepts both direct dict and JSON-encoded string"
+    )
     document_type: str = Field(default="quality_system_record", description="Type of document")
     iso_standard: str = Field(default="ISO 9001:2015", description="ISO standard")
 

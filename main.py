@@ -630,8 +630,120 @@ async def check_quality(request: QualityCheckRequest):
                 detail="Generated template cannot be empty"
             )
         
-        # Handle extracted_fields: convert None to {} (accepts null, missing, or empty dict)
-        extracted_fields = request.extracted_fields if request.extracted_fields is not None else {}
+        # ========== STAGE 1: Rules-based deserialization ==========
+        logger.info("Stage 1: Performing rules-based deserialization")
+        
+        # Track if we found any issues that might need LLM verification
+        stage1_issues = []
+        
+        # Parse generated_template if it's JSON-encoded
+        generated_template = request.generated_template
+        try:
+            # Try to parse as JSON - if Orchestrate sent the entire response object
+            parsed_template = json.loads(generated_template)
+            if isinstance(parsed_template, dict):
+                # Extract the actual template from the nested structure
+                if "generated_template" in parsed_template:
+                    generated_template = parsed_template["generated_template"]
+                    stage1_issues.append("double-serialized generated_template")
+                    logger.info("Detected double-serialized generated_template, extracted actual template")
+                else:
+                    logger.warning("Generated template is a dict but doesn't have 'generated_template' key")
+                    stage1_issues.append("unexpected dict structure in template")
+        except json.JSONDecodeError:
+            # Not JSON, use as-is (this is the expected case)
+            logger.debug("Generated template is plain text (expected)")
+        except Exception as e:
+            logger.warning(f"Unexpected error parsing generated_template: {e}")
+            stage1_issues.append(f"template parsing error: {str(e)[:50]}")
+        
+        # Parse extracted_fields if it's JSON-encoded string
+        extracted_fields = request.extracted_fields
+        
+        # Handle string-serialized dictionary
+        if isinstance(extracted_fields, str):
+            try:
+                extracted_fields = json.loads(extracted_fields)
+                stage1_issues.append("JSON-encoded extracted_fields string")
+                logger.info("Detected JSON-encoded string for extracted_fields, deserialized to dict")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse extracted_fields string as JSON: {e}")
+                stage1_issues.append(f"fields parsing error: {str(e)[:50]}")
+                extracted_fields = {}
+        
+        # Handle None case
+        if extracted_fields is None:
+            extracted_fields = {}
+        
+        # Ensure it's a dict at this point
+        if not isinstance(extracted_fields, dict):
+            logger.error(f"extracted_fields is invalid type after parsing: {type(extracted_fields)}")
+            stage1_issues.append(f"invalid fields type: {type(extracted_fields).__name__}")
+            extracted_fields = {}
+        
+        logger.info(
+            f"Stage 1 complete: template length={len(generated_template)}, "
+            f"fields count={len(extracted_fields)}, issues found={len(stage1_issues)}"
+        )
+        
+        # ========== STAGE 2: CONDITIONAL LLM-powered verification ==========
+        # Only run LLM verification if:
+        # 1. Stage 1 found issues (double-serialization, parsing errors, etc.), OR
+        # 2. LLM_VERIFY_ALWAYS environment variable is set to "true" (for debugging)
+        ALWAYS_VERIFY = os.getenv("LLM_VERIFY_ALWAYS", "false").lower() == "true"
+        should_verify = len(stage1_issues) > 0 or ALWAYS_VERIFY
+        
+        if should_verify:
+            trigger_reason = stage1_issues if stage1_issues else ["LLM_VERIFY_ALWAYS=true"]
+            logger.info(f"Stage 2: Running LLM verification (triggered by: {trigger_reason})")
+            
+            verification_result = llm_service.verify_and_sanitize_inputs(
+                generated_template=generated_template,
+                extracted_fields=extracted_fields,
+                document_type=request.document_type,
+                iso_standard=request.iso_standard
+            )
+            
+            # Use verified inputs
+            generated_template = verification_result["verified_template"]
+            extracted_fields = verification_result["verified_fields"]
+            verification_confidence = verification_result["confidence"]
+            issues_found = verification_result["issues_found"]
+            
+            logger.info(
+                f"Stage 2 complete: confidence={verification_confidence:.2f}, "
+                f"issues_found={len(issues_found)}, "
+                f"recommendation={verification_result.get('recommendation', 'UNKNOWN')}"
+            )
+            
+            # Log any issues found
+            if issues_found:
+                logger.warning(f"LLM verification found and fixed {len(issues_found)} issues:")
+                for issue in issues_found:
+                    logger.warning(f"  - {issue}")
+            
+            # Check if we should reject the inputs
+            if verification_result.get("recommendation") == "REJECT":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Input validation failed: {verification_result.get('summary', 'Inputs are invalid')}"
+                )
+        else:
+            logger.info("Stage 2: SKIPPED (no issues detected in Stage 1, clean input - saves ~5-10s)")
+            verification_confidence = 1.0
+            issues_found = []
+            verification_result = {
+                "verified_template": generated_template,
+                "verified_fields": extracted_fields,
+                "verification_status": "SKIPPED_CLEAN_INPUT",
+                "summary": "Stage 1 found no issues, skipped LLM verification for performance",
+                "confidence": 1.0,
+                "issues_found": [],
+                "recommendation": "PROCEED"
+            }
+        
+        # ========== STAGE 3: Quality check with verified inputs ==========
+        logger.info("Stage 3: Running quality check with verified inputs")
         
         # Log warning if extracted_fields is empty (quality check will be limited)
         fields_missing = len(extracted_fields) == 0
@@ -646,7 +758,7 @@ async def check_quality(request: QualityCheckRequest):
         
         # Run quality check using LLM
         quality_results = llm_service.check_quality(
-            generated_template=request.generated_template,
+            generated_template=generated_template,
             extracted_fields=extracted_fields,
             document_type=request.document_type,
             iso_standard=request.iso_standard,
@@ -739,6 +851,13 @@ async def check_quality(request: QualityCheckRequest):
                 "iso_standard": request.iso_standard,
                 "extracted_fields": extracted_fields
             },
+            # Add verification metadata
+            "input_verification": {
+                "confidence": verification_confidence,
+                "issues_found": issues_found,
+                "status": verification_result.get("verification_status"),
+                "summary": verification_result.get("summary")
+            },
             "timestamp": datetime.now().isoformat(),
             "success": True,
             "message": f"Quality check completed with grade {quality_grade}"
@@ -757,10 +876,14 @@ async def check_quality(request: QualityCheckRequest):
             logger.info(f"Saved quality check report to: {filepath}")
             filepath = str(filepath)
         
-        # Create message with warning if fields are missing
+        # Create message with verification info
         message = f"Quality check completed with grade {quality_grade}"
         if fields_missing:
-            message += " (Limited check - extracted_fields not provided, some field-specific rules could not be fully validated)"
+            message += " (Limited check - extracted_fields not provided)"
+        if issues_found:
+            message += f" (LLM verification fixed {len(issues_found)} input issues)"
+        if verification_confidence < 0.7:
+            message += f" (Warning: Low input confidence: {verification_confidence:.1%})"
         
         return QualityCheckResponse(
             overall_score=overall_score,
@@ -775,6 +898,9 @@ async def check_quality(request: QualityCheckRequest):
             saved_file_path=filepath  # None if SAVE_LOCAL_COPIES=false
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions as is
+        raise
     except Exception as e:
         logger.error(f"Error checking quality: {str(e)}")
         raise HTTPException(
