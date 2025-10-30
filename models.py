@@ -101,7 +101,7 @@ class HealthCheckResponse(BaseModel):
 class QualityCheckRequest(BaseModel):
     """Request model for quality check"""
     generated_template: str = Field(..., description="The generated ISO template to check")
-    extracted_fields: Dict[str, str] = Field(..., description="The extracted fields used to generate the template")
+    extracted_fields: Dict[str, str] = Field(default_factory=dict, description="The extracted fields used to generate the template")
     document_type: str = Field(..., description="Type of document")
     iso_standard: str = Field(..., description="ISO standard")
 

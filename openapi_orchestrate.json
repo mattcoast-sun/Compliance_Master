@@ -214,19 +214,37 @@
                       "example": true
                     },
                     "message": {
-                      "type": "string"
+                      "type": "string",
+                      "example": "Complete workflow executed successfully with quality grade B"
                     },
                     "extracted_text": {
                       "type": "string",
                       "description": "Text extracted from document"
                     },
+                    "document_metadata": {
+                      "type": "object",
+                      "description": "Document metadata (filename, size, etc.)"
+                    },
                     "extracted_fields": {
                       "type": "object",
-                      "description": "Fields extracted from document"
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Dictionary of fields extracted from document"
                     },
                     "generated_template": {
                       "type": "string",
                       "description": "ISO-compliant template"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "description": "Type of document generated",
+                      "example": "quality_system_record"
+                    },
+                    "iso_standard": {
+                      "type": "string",
+                      "description": "ISO standard followed",
+                      "example": "ISO 9001:2015"
                     },
                     "quality_score": {
                       "type": "number",
@@ -240,28 +258,268 @@
                     },
                     "total_rules_checked": {
                       "type": "integer",
+                      "description": "Total number of rules checked",
                       "example": 12
                     },
                     "rules_passed": {
                       "type": "integer",
+                      "description": "Number of rules passed",
                       "example": 10
                     },
                     "rules_failed": {
                       "type": "integer",
+                      "description": "Number of rules failed",
                       "example": 2
                     },
                     "violations": {
                       "type": "array",
-                      "description": "List of quality rule violations"
+                      "description": "List of quality rule violations",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rule_id": {
+                            "type": "string",
+                            "example": "RULE_001"
+                          },
+                          "rule_name": {
+                            "type": "string",
+                            "example": "Department Field Required"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": ["error", "warning", "info"],
+                            "example": "error"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Department field must be present"
+                          },
+                          "violation_details": {
+                            "type": "string",
+                            "example": "Department field not found in template"
+                          },
+                          "passed": {
+                            "type": "boolean",
+                            "example": false
+                          }
+                        }
+                      }
                     },
                     "recommendations": {
                       "type": "array",
-                      "description": "Recommendations for improvement"
+                      "description": "Recommendations for improvement",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "source_document": {
+                      "type": "string",
+                      "description": "Original document filename or identifier",
+                      "example": "Pre-loaded: non_compliant_iso"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "Timestamp of processing (ISO 8601 format)",
+                      "example": "2024-10-30T12:00:00.000000"
+                    },
+                    "saved_file_path": {
+                      "type": "string",
+                      "description": "Path to saved output file (null if not saved locally)",
+                      "nullable": true,
+                      "example": "outputs/complete_workflow_preloaded_non_compliant_iso_20241030_120000.json"
                     }
                   }
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid document_id"
+          },
+          "500": {
+            "description": "Server error during processing"
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-complete": {
+      "post": {
+        "operationId": "workflowComplete",
+        "summary": "Complete workflow with file upload",
+        "description": "Upload a document and execute the COMPLETE workflow: parse, extract, generate ISO template, AND run quality checks - all in one!",
+        "tags": ["Complete Workflow"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to process (DOCX, PDF, etc.)"
+                  },
+                  "iso_standard": {
+                    "type": "string",
+                    "default": "ISO 9001:2015",
+                    "description": "ISO standard to follow",
+                    "example": "ISO 9001:2015"
+                  },
+                  "document_type": {
+                    "type": "string",
+                    "default": "quality_system_record",
+                    "description": "Type of ISO document to generate",
+                    "example": "quality_system_record"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete workflow executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Complete workflow executed successfully with quality grade B"
+                    },
+                    "extracted_text": {
+                      "type": "string",
+                      "description": "Text extracted from document"
+                    },
+                    "document_metadata": {
+                      "type": "object",
+                      "description": "Document metadata (filename, size, etc.)"
+                    },
+                    "extracted_fields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Dictionary of fields extracted from document"
+                    },
+                    "generated_template": {
+                      "type": "string",
+                      "description": "ISO-compliant template"
+                    },
+                    "document_type": {
+                      "type": "string",
+                      "description": "Type of document generated",
+                      "example": "quality_system_record"
+                    },
+                    "iso_standard": {
+                      "type": "string",
+                      "description": "ISO standard followed",
+                      "example": "ISO 9001:2015"
+                    },
+                    "quality_score": {
+                      "type": "number",
+                      "description": "Quality score (0-100)",
+                      "example": 85.5
+                    },
+                    "quality_grade": {
+                      "type": "string",
+                      "description": "Quality grade (A, B, C, D, F)",
+                      "example": "B"
+                    },
+                    "total_rules_checked": {
+                      "type": "integer",
+                      "description": "Total number of rules checked",
+                      "example": 12
+                    },
+                    "rules_passed": {
+                      "type": "integer",
+                      "description": "Number of rules passed",
+                      "example": 10
+                    },
+                    "rules_failed": {
+                      "type": "integer",
+                      "description": "Number of rules failed",
+                      "example": 2
+                    },
+                    "violations": {
+                      "type": "array",
+                      "description": "List of quality rule violations",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rule_id": {
+                            "type": "string",
+                            "example": "RULE_001"
+                          },
+                          "rule_name": {
+                            "type": "string",
+                            "example": "Department Field Required"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": ["error", "warning", "info"],
+                            "example": "error"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Department field must be present"
+                          },
+                          "violation_details": {
+                            "type": "string",
+                            "example": "Department field not found in template"
+                          },
+                          "passed": {
+                            "type": "boolean",
+                            "example": false
+                          }
+                        }
+                      }
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "description": "Recommendations for improvement",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "source_document": {
+                      "type": "string",
+                      "description": "Original document filename",
+                      "example": "sample_document.docx"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "Timestamp of processing (ISO 8601 format)",
+                      "example": "2024-10-30T12:00:00.000000"
+                    },
+                    "saved_file_path": {
+                      "type": "string",
+                      "description": "Path to saved output file (null if not saved locally)",
+                      "nullable": true,
+                      "example": "outputs/complete_workflow_quality_system_record_20241030_120000.json"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or parameters"
+          },
+          "500": {
+            "description": "Server error during processing"
           }
         }
       }
@@ -647,26 +905,26 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "generated_template",
-                  "extracted_fields",
-                  "document_type",
-                  "iso_standard"
-                ],
-                "properties": {
-                  "generated_template": {
-                    "type": "string",
-                    "description": "The ISO template text to check"
+            "schema": {
+              "type": "object",
+              "required": [
+                "generated_template",
+                "document_type",
+                "iso_standard"
+              ],
+              "properties": {
+                "generated_template": {
+                  "type": "string",
+                  "description": "The ISO template text to check"
+                },
+                "extracted_fields": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
                   },
-                  "extracted_fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "string"
-                    },
-                    "description": "The fields used to generate the template"
-                  },
+                  "description": "The fields used to generate the template (optional, defaults to empty object)",
+                  "default": {}
+                },
                   "document_type": {
                     "type": "string",
                     "example": "quality_system_record"
@@ -791,6 +1049,10 @@
     {
       "name": "Complete Processing",
       "description": "End-to-end document processing pipeline"
+    },
+    {
+      "name": "Complete Workflow",
+      "description": "Complete workflow with all steps including quality checks"
     },
     {
       "name": "Quality Assurance",
