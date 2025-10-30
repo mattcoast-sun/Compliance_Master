@@ -7,8 +7,12 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8765",
-      "description": "Local development server"
+      "url": "https://compliancemaster-production.up.railway.app",
+      "description": "Production server (Railway)"
+    },
+    {
+      "url": "https://compliancemaster-production.up.railway.app",
+      "description": "Development server (Railway)"
     }
   ],
   "paths": {
@@ -103,7 +107,7 @@
                     "type": "string",
                     "description": "ID of pre-loaded document",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "laser_equipment_procedure"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -194,7 +198,7 @@
                     "type": "string",
                     "description": "ID of pre-loaded document",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "laser_equipment_procedure"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -1062,6 +1066,61 @@
           }
         }
       }
+    },
+    "/api/v1/quality-check-executive": {
+      "post": {
+        "operationId": "qualityCheckExecutive",
+        "summary": "Executive quality check - ultra-simple: string in, markdown report out",
+        "description": "Ultra-simple executive quality check that takes just one string (the template) and returns a clean markdown report with tables, grades, and actionable insights. Perfect for executives and auditors who need quick, scannable reports.",
+        "tags": ["Quality Check"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["generated_template"],
+                "properties": {
+                  "generated_template": {
+                    "type": "string",
+                    "description": "The generated ISO template to analyze",
+                    "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Executive quality check completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quality_report": {
+                      "type": "string",
+                      "description": "Executive-friendly markdown report with tables, grades, and recommendations",
+                      "example": "# Executive Quality Report\n\n## Overall Assessment\n- **Grade:** B\n- **Score:** 82.5/100..."
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-10-30T15:54:09.082203"
+                    }
+                  },
+                  "required": ["quality_report", "success", "timestamp"]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -1092,6 +1151,10 @@
     {
       "name": "Quality Assurance",
       "description": "Validate and check quality of generated templates"
+    },
+    {
+      "name": "Quality Check",
+      "description": "Simple quality checks and executive reports"
     }
   ]
 }

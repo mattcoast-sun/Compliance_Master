@@ -535,4 +535,132 @@ Format your response as a clear, professional quality report."""
         except Exception as e:
             logger.error(f"Error in simple quality check: {str(e)}")
             return f"Error generating quality report: {str(e)}"
+    
+    def executive_quality_check(
+        self, 
+        generated_template: str,
+        document_type: str = "quality_system_record",
+        iso_standard: str = "ISO 9001:2015"
+    ) -> str:
+        """
+        Executive-friendly quality check that returns a clean markdown report.
+        Designed for quick review by executives and auditors - no lengthy paragraphs.
+        
+        Args:
+            generated_template: The generated ISO template to analyze
+            document_type: Type of document being analyzed
+            iso_standard: ISO standard to check against
+            
+        Returns:
+            str: Clean markdown report with tables, grades, and concise issues
+        """
+        try:
+            prompt = f"""You are a senior quality auditor conducting an executive-level ISO compliance review.
+
+DOCUMENT INFORMATION:
+- Type: {document_type}
+- Standard: {iso_standard}
+
+TEMPLATE TO ANALYZE:
+{generated_template[:4000]}
+
+TASK: Create an EXECUTIVE QUALITY REPORT in clean, professional MARKDOWN format.
+
+Your report should include:
+
+1. OVERALL ASSESSMENT (at the top)
+   - Overall Grade (A, B, C, D, or F)
+   - Overall Score (0-100)
+   - Compliance Status (Compliant, Needs Revision, or Non-Compliant)
+   - Executive Summary (2-3 sentences max)
+
+2. SECTION-BY-SECTION ASSESSMENT TABLE
+   Create a markdown table with columns: Section | Grade | Score | Status | Issues
+   - Identify all major sections (Header, Purpose & Scope, Procedures, Responsibilities, etc.)
+   - Give each section a grade (A-F), score (0-100), and status (Pass/Warning/Fail)
+   - List specific issues for each section (be brief: 1 line per issue)
+   - If no issues, write "No issues found"
+
+3. CRITICAL ISSUES (numbered list of top 3-5 most important problems)
+
+4. RECOMMENDATIONS (numbered list of top 3-5 actionable next steps)
+
+FORMAT EXAMPLE:
+
+# Executive Quality Report
+
+## Overall Assessment
+- **Grade:** B
+- **Score:** 82.5/100
+- **Compliance Status:** Needs Revision
+- **Summary:** Document structure is sound but requires attention to missing department information.
+
+## Section-by-Section Assessment
+
+| Section | Grade | Score | Status | Issues |
+|---------|-------|-------|--------|--------|
+| Header Information | C | 70 | ⚠️ Warning | Department field missing; Date outdated |
+| Purpose & Scope | A | 95 | ✅ Pass | No issues found |
+| Procedures | B | 85 | ✅ Pass | Minor formatting inconsistencies |
+
+## Critical Issues
+1. Department information is missing from document header
+2. Revision date is older than 2 years
+3. Responsibilities section lacks specific role assignments
+
+## Recommendations
+1. Add proper department designation to document header
+2. Update document to current revision with recent effective date
+3. Replace generic role descriptions with specific assignments
+
+---
+
+Return ONLY the markdown report. Be concise and specific. Use emojis (✅ ⚠️ ❌) for status indicators."""
+
+            model = self._get_model()
+            response = model.generate_text(prompt=prompt)
+            
+            if not response or not response.strip():
+                logger.error("LLM returned empty response for executive quality check")
+                return """# Executive Quality Report
+
+## Overall Assessment
+- **Grade:** F
+- **Score:** 0/100
+- **Compliance Status:** Error
+- **Summary:** Unable to analyze document. Quality check failed to complete.
+
+## Critical Issues
+1. Quality check service returned no response
+2. Please retry the quality check
+
+## Recommendations
+1. Verify the document template is valid
+2. Try running the quality check again
+3. Contact support if issue persists
+"""
+            
+            logger.info(f"Executive quality check completed. Report length: {len(response)} chars")
+            return response.strip()
+            
+        except Exception as e:
+            logger.error(f"Error in executive quality check: {str(e)}")
+            return f"""# Executive Quality Report
+
+## Overall Assessment
+- **Grade:** F
+- **Score:** 0/100
+- **Compliance Status:** Error
+- **Summary:** Error during quality check: {str(e)[:200]}
+
+## Critical Issues
+1. Quality check encountered an error
+2. {str(e)[:200]}
+
+## Recommendations
+1. Review the error message above
+2. Verify document template is valid
+3. Retry the quality check
+4. Contact support if issue persists
+"""
 

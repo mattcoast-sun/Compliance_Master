@@ -27,7 +27,9 @@ from models import (
     CompleteWorkflowResponse,
     PreloadedDocumentRequest,
     SimpleQualityCheckRequest,
-    SimpleQualityCheckResponse
+    SimpleQualityCheckResponse,
+    ExecutiveQualityCheckRequest,
+    ExecutiveQualityCheckResponse
 )
 from document_parser import DocumentParser
 from llm_service import GraniteLLMService
@@ -131,9 +133,9 @@ PRELOADED_DOCUMENTS = {
         "path": "sample_calib.docx",
         "description": "Sample calibration document"
     },
-    "cool_lazer": {
+    "laser_equipment_procedure": {
         "path": "cool_lazer.docx",
-        "description": "Cool laser equipment document"
+        "description": "Laser equipment calibration procedure"
     }
 }
 
@@ -959,6 +961,78 @@ async def quality_check_simple(request: SimpleQualityCheckRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to perform simple quality check: {str(e)}"
+        )
+
+
+@app.post(
+    "/api/v1/quality-check-executive",
+    response_model=ExecutiveQualityCheckResponse,
+    tags=["Quality Check"],
+    summary="Executive quality check - ultra-simple: string in, markdown report out",
+    description="Ultra-simple executive quality check that takes just one string (the template) and returns a clean markdown report with tables, grades, and actionable insights. No complex types, guaranteed to work.",
+    operation_id="qualityCheckExecutive"
+)
+async def quality_check_executive(request: ExecutiveQualityCheckRequest):
+    """
+    Executive-friendly quality check endpoint - ultra-simple to avoid any model passing errors.
+    
+    INPUT: Just one string (the generated ISO template)
+    OUTPUT: Clean markdown report with tables, grades, and recommendations
+    
+    This endpoint provides a clean, readable markdown report with:
+    - Overall grade and score
+    - Section-by-section assessment table with individual grades
+    - Critical issues list (top 3-5 most important)
+    - Actionable recommendations (top 3-5)
+    - Compliance status at a glance
+    
+    Output is optimized for:
+    - Quick review by executives and auditors
+    - Easy navigation through document sections
+    - Clear, concise issue identification
+    - No lengthy paragraphs - just actionable insights in markdown tables
+    
+    This endpoint uses LLM-based analysis like quality-check-simple but returns
+    a structured markdown report instead of lengthy paragraphs.
+    
+    Ultra-simple design: string in, string out - no complex types to cause errors.
+    """
+    try:
+        logger.info("Starting executive quality check")
+        
+        # Validate input
+        if not request.generated_template or not request.generated_template.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="generated_template cannot be empty"
+            )
+        
+        # Call the executive LLM quality check (returns markdown string)
+        # Uses default document_type and iso_standard
+        quality_report = llm_service.executive_quality_check(
+            generated_template=request.generated_template,
+            document_type="quality_system_record",  # Default
+            iso_standard="ISO 9001:2015"  # Default
+        )
+        
+        # Build response
+        response = ExecutiveQualityCheckResponse(
+            quality_report=quality_report,
+            success=True,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        logger.info(f"Executive quality check completed. Report length: {len(quality_report)} chars")
+        return response
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as is
+        raise
+    except Exception as e:
+        logger.error(f"Error in executive quality check: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to perform executive quality check: {str(e)}"
         )
 
 

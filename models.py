@@ -176,3 +176,15 @@ class SimpleQualityCheckResponse(BaseModel):
     success: bool = Field(..., description="Whether the quality check was successful")
     timestamp: str = Field(..., description="Timestamp of the quality check")
 
+
+class ExecutiveQualityCheckRequest(BaseModel):
+    """Request model for executive quality check - ultra-simple, just one string"""
+    generated_template: str = Field(..., description="The generated ISO template to analyze")
+
+
+class ExecutiveQualityCheckResponse(BaseModel):
+    """Executive-friendly quality check response - returns a clean markdown report"""
+    quality_report: str = Field(..., description="Executive-friendly quality report in markdown format with tables, grades, and sections")
+    success: bool = Field(..., description="Whether the quality check was successful")
+    timestamp: str = Field(..., description="Timestamp of the quality check")
+

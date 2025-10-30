@@ -11,12 +11,12 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8765",
-      "description": "Local development server"
+      "url": "https://compliancemaster-production.up.railway.app",
+      "description": "Production server (Railway)"
     },
     {
-      "url": "https://your-production-url.com",
-      "description": "Production server (update with your Railway URL)"
+      "url": "https://compliancemaster-production.up.railway.app",
+      "description": "Development server (Railway)"
     }
   ],
   "paths": {
@@ -120,7 +120,7 @@
                     "type": "string",
                     "description": "ID of the pre-loaded document to process. Use /api/v1/list-preloaded-documents to see available options.",
                     "example": "sample_calibration",
-                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "laser_equipment_procedure"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -191,7 +191,7 @@
                     "type": "string",
                     "description": "ID of the pre-loaded document to process",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "laser_equipment_procedure"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -701,6 +701,122 @@
         }
       }
     },
+    "/api/v1/quality-check-simple": {
+      "post": {
+        "operationId": "qualityCheckSimple",
+        "summary": "Simple quality check - just generated template in, quality report out",
+        "description": "Ultra-simple quality check endpoint that takes a generated ISO template and returns an LLM-generated quality report. No complex typing, guaranteed to work. Perfect for watsonx Orchestrate when you just want a human-readable quality assessment.",
+        "tags": ["Quality Check"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["generated_template"],
+                "properties": {
+                  "generated_template": {
+                    "type": "string",
+                    "description": "The generated ISO template to analyze for quality",
+                    "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure\nDocument Number: QSP-001..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Quality check completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleQualityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - empty template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during quality check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality-check-executive": {
+      "post": {
+        "operationId": "qualityCheckExecutive",
+        "summary": "Executive quality check - ultra-simple: string in, markdown report out",
+        "description": "Ultra-simple executive quality check that takes just one string (the template) and returns a clean markdown report with tables, grades, and actionable insights. Perfect for executives and auditors who need quick, scannable reports. No complex types, guaranteed to work.",
+        "tags": ["Quality Check"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["generated_template"],
+                "properties": {
+                  "generated_template": {
+                    "type": "string",
+                    "description": "The generated ISO template to analyze",
+                    "example": "=== QUALITY SYSTEM RECORD ===\n\nDocument Title: Quality System Procedure\nDocument Number: QSP-001..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Executive quality check completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutiveQualityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - empty template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during quality check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/debug-upload": {
       "post": {
         "operationId": "debugUpload",
@@ -1183,6 +1299,50 @@
           "source_document",
           "timestamp"
         ]
+      },
+      "SimpleQualityCheckResponse": {
+        "type": "object",
+        "properties": {
+          "quality_report": {
+            "type": "string",
+            "description": "LLM-generated comprehensive quality report analyzing the ISO template",
+            "example": "Quality Analysis Report:\n\n1. Overall Assessment: GOOD\n\n2. Strengths:\n- Document contains all required header fields\n- Clear structure and formatting\n- Proper ISO compliance elements present\n\n3. Areas for Improvement:\n- Consider adding more detail to the scope section\n- Effective date could be more prominently displayed\n\n4. Compliance Check:\n✓ Document number present\n✓ Revision control in place\n✓ Department identification clear\n✓ ISO standard referenced\n\n5. Recommendations:\n- Add approval signatures section\n- Include distribution list\n- Consider adding change history\n\nOverall Grade: B+ (85/100)"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "Whether the quality check was successful",
+            "example": true
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp of the quality check (ISO 8601 format)",
+            "format": "date-time",
+            "example": "2025-10-30T12:00:00.000000"
+          }
+        },
+        "required": ["quality_report", "success", "timestamp"]
+      },
+      "ExecutiveQualityCheckResponse": {
+        "type": "object",
+        "properties": {
+          "quality_report": {
+            "type": "string",
+            "description": "Executive-friendly quality report in markdown format with structured tables, section grades, critical issues, and recommendations. Designed for quick scanning by executives and auditors.",
+            "example": "# Executive Quality Report\n\n## Overall Assessment\n- **Grade:** B\n- **Score:** 82.5/100\n- **Compliance Status:** Needs Revision\n- **Summary:** Document structure is sound but requires attention to missing department information.\n\n## Section-by-Section Assessment\n\n| Section | Grade | Score | Status | Issues |\n|---------|-------|-------|--------|--------|\n| Header Information | C | 70 | ⚠️ Warning | Department field missing; Date outdated |\n| Purpose & Scope | A | 95 | ✅ Pass | No issues found |\n| Procedures | B | 85 | ✅ Pass | Minor formatting inconsistencies |\n\n## Critical Issues\n1. Department information is missing from document header\n2. Revision date is older than 2 years\n3. Responsibilities section lacks specific role assignments\n\n## Recommendations\n1. Add proper department designation to document header\n2. Update document to current revision with recent effective date\n3. Replace generic role descriptions with specific assignments\n\n---"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "Whether the quality check was successful",
+            "example": true
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp of the quality check (ISO 8601 format)",
+            "format": "date-time",
+            "example": "2025-10-30T15:54:09.082203"
+          }
+        },
+        "required": ["quality_report", "success", "timestamp"]
       }
     }
   },
@@ -1214,6 +1374,10 @@
     {
       "name": "Quality Assurance",
       "description": "Validate and check quality of generated templates against ISO standards"
+    },
+    {
+      "name": "Quality Check",
+      "description": "Simple quality checking endpoints - minimal complexity, maximum compatibility"
     }
   ]
 }
