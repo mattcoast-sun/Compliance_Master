@@ -1,0 +1,19 @@
+# Test dependencies for Compliance Master API
+# Install with: pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-timeout>=2.1.0
+
+# HTTP client for API testing
+requests>=2.31.0
+
+# Optional: Enhanced test reporting
+pytest-html>=3.2.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0  # For parallel test execution
+
+# Optional: Better output formatting
+colorama>=0.4.6
+tabulate>=0.9.0
+

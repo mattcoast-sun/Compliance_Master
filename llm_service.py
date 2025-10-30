@@ -139,13 +139,17 @@ Response:"""
         
         Args:
             document_type: Type of ISO document to generate
-            extracted_fields: Dictionary of extracted fields
+            extracted_fields: Dictionary of extracted fields (can be None or empty dict)
             iso_standard: ISO standard to follow
             
         Returns:
             Generated ISO document template as string
         """
         try:
+            # Handle None or empty extracted_fields
+            if extracted_fields is None:
+                extracted_fields = {}
+            
             # Prepare fields for prompt
             fields_text = "\n".join([f"- {key}: {value}" for key, value in extracted_fields.items()])
             
@@ -191,7 +195,7 @@ Template:"""
         
         Args:
             generated_template: The generated template to check
-            extracted_fields: Fields used to generate the template
+            extracted_fields: Fields used to generate the template (can be None or empty dict)
             document_type: Type of document
             iso_standard: ISO standard followed
             quality_rules: Formatted quality rules text
@@ -200,8 +204,16 @@ Template:"""
             Dictionary containing quality check results
         """
         try:
+            # Handle None or empty extracted_fields
+            if extracted_fields is None:
+                extracted_fields = {}
+            
             # Prepare fields for prompt
-            fields_text = "\n".join([f"- {key}: {value}" for key, value in extracted_fields.items()])
+            fields_available = len(extracted_fields) > 0
+            if fields_available:
+                fields_text = "\n".join([f"- {key}: {value}" for key, value in extracted_fields.items()])
+            else:
+                fields_text = "(No extracted fields provided - field-specific validation will be limited)"
             
             prompt = f"""You are a quality assurance expert specializing in ISO documentation.
 
@@ -225,6 +237,8 @@ For each rule, evaluate whether the template passes or fails. Pay special attent
 - Dates older than 2 years from today's date ({datetime.now().strftime('%Y-%m-%d')})
 - Missing required fields or sections
 - Placeholder text or incomplete content
+
+{"NOTE: Since no extracted fields were provided, focus primarily on structural and content quality rules. Field-specific rules (QR001, QR003, QR004, QR007, QR014) should be evaluated based only on what appears in the template itself." if not fields_available else ""}
 
 Provide your analysis in the following JSON format:
 {{

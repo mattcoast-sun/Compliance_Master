@@ -87,6 +87,7 @@ class ISOTemplateResponse(BaseModel):
     generated_template: str = Field(..., description="The generated ISO document template")
     document_type: str = Field(..., description="Type of document generated")
     iso_standard: str = Field(..., description="ISO standard followed")
+    extracted_fields: Dict[str, str] = Field(default_factory=dict, description="Extracted fields used to generate the template (enables chaining to quality check)")
     success: bool = Field(..., description="Whether the generation was successful")
     message: Optional[str] = Field(None, description="Additional information or error message")
     saved_file_path: Optional[str] = Field(None, description="Path to the saved JSON output file")
@@ -101,7 +102,7 @@ class HealthCheckResponse(BaseModel):
 class QualityCheckRequest(BaseModel):
     """Request model for quality check"""
     generated_template: str = Field(..., description="The generated ISO template to check")
-    extracted_fields: Dict[str, str] = Field(default_factory=dict, description="The extracted fields used to generate the template")
+    extracted_fields: Optional[Dict[str, str]] = Field(default=None, description="The extracted fields used to generate the template")
     document_type: str = Field(..., description="Type of document")
     iso_standard: str = Field(..., description="ISO standard")
 

@@ -271,6 +271,7 @@ async def process_preloaded(request: PreloadedDocumentRequest):
             generated_template=generated_template,
             document_type=request.document_type,
             iso_standard=request.iso_standard,
+            extracted_fields=fields_dict,
             success=True,
             message=f"Successfully processed pre-loaded document: {request.document_id}",
             saved_file_path=saved_path
@@ -464,6 +465,7 @@ async def generate_iso_template(request: ISOTemplateRequest):
             generated_template=generated_template,
             document_type=request.document_type,
             iso_standard=request.iso_standard,
+            extracted_fields=request.extracted_fields,
             success=True,
             message="ISO template generated successfully",
             saved_file_path=saved_path
@@ -572,6 +574,7 @@ async def process_complete(
             generated_template=generated_template,
             document_type=document_type,
             iso_standard=iso_standard,
+            extracted_fields=fields_dict,
             success=True,
             message="Complete processing pipeline executed successfully",
             saved_file_path=saved_path
@@ -619,13 +622,24 @@ async def check_quality(request: QualityCheckRequest):
                 detail="Generated template cannot be empty"
             )
         
+        # Handle None extracted_fields - convert to empty dict
+        extracted_fields = request.extracted_fields if request.extracted_fields is not None else {}
+        
+        # Log warning if extracted_fields is empty (quality check will be limited)
+        fields_missing = not extracted_fields or len(extracted_fields) == 0
+        if fields_missing:
+            logger.warning(
+                "Quality check called without extracted_fields. "
+                "Some quality rules (QR001, QR003, QR004, QR007, QR014) cannot be fully validated."
+            )
+        
         # Format quality rules for the LLM
         rules_text = format_rules_for_prompt()
         
         # Run quality check using LLM
         quality_results = llm_service.check_quality(
             generated_template=request.generated_template,
-            extracted_fields=request.extracted_fields,
+            extracted_fields=extracted_fields,
             document_type=request.document_type,
             iso_standard=request.iso_standard,
             quality_rules=rules_text
@@ -695,7 +709,7 @@ async def check_quality(request: QualityCheckRequest):
             "document_info": {
                 "document_type": request.document_type,
                 "iso_standard": request.iso_standard,
-                "extracted_fields": request.extracted_fields
+                "extracted_fields": extracted_fields
             },
             "timestamp": datetime.now().isoformat(),
             "success": True,
@@ -715,6 +729,11 @@ async def check_quality(request: QualityCheckRequest):
             logger.info(f"Saved quality check report to: {filepath}")
             filepath = str(filepath)
         
+        # Create message with warning if fields are missing
+        message = f"Quality check completed with grade {quality_grade}"
+        if fields_missing:
+            message += " (Limited check - extracted_fields not provided, some field-specific rules could not be fully validated)"
+        
         return QualityCheckResponse(
             overall_score=overall_score,
             total_rules_checked=total_rules_checked,
@@ -724,7 +743,7 @@ async def check_quality(request: QualityCheckRequest):
             recommendations=quality_results.get("recommendations", []),
             quality_grade=quality_grade,
             success=True,
-            message=f"Quality check completed with grade {quality_grade}",
+            message=message,
             saved_file_path=filepath  # None if SAVE_LOCAL_COPIES=false
         )
         
