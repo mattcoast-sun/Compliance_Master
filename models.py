@@ -164,3 +164,15 @@ class CompleteWorkflowResponse(BaseModel):
     message: str = Field(..., description="Status message")
     saved_file_path: Optional[str] = Field(None, description="Path to the saved output file")
 
+
+class SimpleQualityCheckRequest(BaseModel):
+    """Simple request model for quality check - just the generated ISO template"""
+    generated_template: str = Field(..., description="The generated ISO template to analyze for quality")
+
+
+class SimpleQualityCheckResponse(BaseModel):
+    """Simple response model for quality check - just a quality report"""
+    quality_report: str = Field(..., description="LLM-generated comprehensive quality report")
+    success: bool = Field(..., description="Whether the quality check was successful")
+    timestamp: str = Field(..., description="Timestamp of the quality check")
+
