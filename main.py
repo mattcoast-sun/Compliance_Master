@@ -124,6 +124,14 @@ PRELOADED_DOCUMENTS = {
     "non_compliant_iso": {
         "path": "non_compliant_iso_doc.docx",
         "description": "Non-compliant ISO document for testing quality checks"
+    },
+    "sample_calib": {
+        "path": "sample_calib.docx",
+        "description": "Sample calibration document"
+    },
+    "cool_lazer": {
+        "path": "cool_lazer.docx",
+        "description": "Cool laser equipment document"
     }
 }
 
@@ -622,11 +630,11 @@ async def check_quality(request: QualityCheckRequest):
                 detail="Generated template cannot be empty"
             )
         
-        # Handle None extracted_fields - convert to empty dict
+        # Handle extracted_fields: convert None to {} (accepts null, missing, or empty dict)
         extracted_fields = request.extracted_fields if request.extracted_fields is not None else {}
         
         # Log warning if extracted_fields is empty (quality check will be limited)
-        fields_missing = not extracted_fields or len(extracted_fields) == 0
+        fields_missing = len(extracted_fields) == 0
         if fields_missing:
             logger.warning(
                 "Quality check called without extracted_fields. "
@@ -645,18 +653,38 @@ async def check_quality(request: QualityCheckRequest):
             quality_rules=rules_text
         )
         
+        # Ensure quality_results is not None
+        if quality_results is None:
+            logger.error("LLM check_quality returned None")
+            quality_results = {
+                "violations": [],
+                "recommendations": ["Quality check failed to return valid results"]
+            }
+        
         # Process violations
         violations = []
         rules_passed = 0
         rules_failed = 0
         
         for violation_data in quality_results.get("violations", []):
-            violation = RuleViolation(**violation_data)
-            violations.append(violation)
-            if violation.passed:
-                rules_passed += 1
-            else:
-                rules_failed += 1
+            try:
+                # Ensure all required fields are present with defaults
+                violation = RuleViolation(
+                    rule_id=violation_data.get("rule_id", "UNKNOWN"),
+                    rule_name=violation_data.get("rule_name", "Unknown Rule"),
+                    severity=violation_data.get("severity", "error"),
+                    description=violation_data.get("description", "No description provided"),
+                    violation_details=violation_data.get("violation_details", "No details provided"),
+                    passed=violation_data.get("passed", False)
+                )
+                violations.append(violation)
+                if violation.passed:
+                    rules_passed += 1
+                else:
+                    rules_failed += 1
+            except Exception as e:
+                logger.warning(f"Failed to parse violation data: {e}. Data: {violation_data}")
+                continue
         
         total_rules_checked = len(violations)
         
@@ -850,18 +878,38 @@ async def workflow_complete(
             quality_rules=rules_text
         )
         
+        # Ensure quality_results is not None
+        if quality_results is None:
+            logger.error("LLM check_quality returned None")
+            quality_results = {
+                "violations": [],
+                "recommendations": ["Quality check failed to return valid results"]
+            }
+        
         # Process quality check violations
         violations = []
         rules_passed = 0
         rules_failed = 0
         
         for violation_data in quality_results.get("violations", []):
-            violation = RuleViolation(**violation_data)
-            violations.append(violation)
-            if violation.passed:
-                rules_passed += 1
-            else:
-                rules_failed += 1
+            try:
+                # Ensure all required fields are present with defaults
+                violation = RuleViolation(
+                    rule_id=violation_data.get("rule_id", "UNKNOWN"),
+                    rule_name=violation_data.get("rule_name", "Unknown Rule"),
+                    severity=violation_data.get("severity", "error"),
+                    description=violation_data.get("description", "No description provided"),
+                    violation_details=violation_data.get("violation_details", "No details provided"),
+                    passed=violation_data.get("passed", False)
+                )
+                violations.append(violation)
+                if violation.passed:
+                    rules_passed += 1
+                else:
+                    rules_failed += 1
+            except Exception as e:
+                logger.warning(f"Failed to parse violation data: {e}. Data: {violation_data}")
+                continue
         
         total_rules_checked = len(violations)
         
@@ -1064,29 +1112,40 @@ async def workflow_preloaded(request: PreloadedDocumentRequest):
             quality_rules=rules_text
         )
         
+        # Ensure quality_results is not None
+        if quality_results is None:
+            logger.error("LLM check_quality returned None")
+            quality_results = {
+                "violations": [],
+                "recommendations": ["Quality check failed to return valid results"]
+            }
+        
         # Process quality check violations
         violations = []
         rules_passed = 0
         rules_failed = 0
         
-        for check in quality_results.get("checks", []):
-            passed = check.get("passed", False)
-            if passed:
-                rules_passed += 1
-            else:
-                rules_failed += 1
-                violations.append(
-                    RuleViolation(
-                        rule_id=check.get("rule_id", ""),
-                        rule_name=check.get("rule_name", ""),
-                        severity=check.get("severity", "error"),
-                        description=check.get("description", ""),
-                        violation_details=check.get("details", ""),
-                        passed=passed
-                    )
+        for violation_data in quality_results.get("violations", []):
+            try:
+                # Ensure all required fields are present with defaults
+                violation = RuleViolation(
+                    rule_id=violation_data.get("rule_id", "UNKNOWN"),
+                    rule_name=violation_data.get("rule_name", "Unknown Rule"),
+                    severity=violation_data.get("severity", "error"),
+                    description=violation_data.get("description", "No description provided"),
+                    violation_details=violation_data.get("violation_details", "No details provided"),
+                    passed=violation_data.get("passed", False)
                 )
+                violations.append(violation)
+                if violation.passed:
+                    rules_passed += 1
+                else:
+                    rules_failed += 1
+            except Exception as e:
+                logger.warning(f"Failed to parse violation data: {e}. Data: {violation_data}")
+                continue
         
-        total_rules_checked = rules_passed + rules_failed
+        total_rules_checked = len(violations)
         quality_score = (rules_passed / total_rules_checked * 100) if total_rules_checked > 0 else 0
         
         # Determine quality grade
@@ -1176,4 +1235,6 @@ async def workflow_preloaded(request: PreloadedDocumentRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8765)
+
+    
 

@@ -151,7 +151,10 @@ Response:"""
                 extracted_fields = {}
             
             # Prepare fields for prompt
-            fields_text = "\n".join([f"- {key}: {value}" for key, value in extracted_fields.items()])
+            if len(extracted_fields) > 0:
+                fields_text = "\n".join([f"- {key}: {value}" for key, value in extracted_fields.items()])
+            else:
+                fields_text = "(No fields provided - template will use generic placeholders)"
             
             prompt = f"""You are an expert in creating ISO compliant documentation.
 
@@ -267,12 +270,41 @@ Return ONLY the JSON object, no additional text."""
             import json
             import re
             
+            # Ensure response is not None
+            if response is None:
+                logger.error("LLM returned None response")
+                return {
+                    "violations": [],
+                    "recommendations": ["LLM returned empty response. Please try again."]
+                }
+            
             # Try to extract JSON from response
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                result = json.loads(json_match.group())
+                try:
+                    result = json.loads(json_match.group())
+                    # Ensure result has the required structure
+                    if not isinstance(result, dict):
+                        logger.error(f"LLM returned non-dict JSON: {type(result)}")
+                        result = {
+                            "violations": [],
+                            "recommendations": ["LLM returned invalid response format."]
+                        }
+                    else:
+                        # Ensure required keys exist
+                        if "violations" not in result:
+                            result["violations"] = []
+                        if "recommendations" not in result:
+                            result["recommendations"] = []
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON from LLM response: {e}")
+                    result = {
+                        "violations": [],
+                        "recommendations": ["Failed to parse quality check results. Please review manually."]
+                    }
             else:
                 # If no JSON found, create a basic result
+                logger.warning("No JSON found in LLM response")
                 result = {
                     "violations": [],
                     "recommendations": ["Unable to parse quality check results. Please review manually."]

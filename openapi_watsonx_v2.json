@@ -120,7 +120,7 @@
                     "type": "string",
                     "description": "ID of the pre-loaded document to process. Use /api/v1/list-preloaded-documents to see available options.",
                     "example": "sample_calibration",
-                    "enum": ["sample_calibration", "non_compliant_iso"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -191,7 +191,7 @@
                     "type": "string",
                     "description": "ID of the pre-loaded document to process",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -630,7 +630,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["generated_template", "document_type", "iso_standard"],
+                "required": ["generated_template"],
                 "properties": {
                   "generated_template": {
                     "type": "string",
@@ -652,11 +652,13 @@
                   "document_type": {
                     "type": "string",
                     "description": "Type of ISO document being checked",
+                    "default": "quality_system_record",
                     "example": "quality_system_record"
                   },
                   "iso_standard": {
                     "type": "string",
                     "description": "ISO standard the document should comply with",
+                    "default": "ISO 9001:2015",
                     "example": "ISO 9001:2015"
                   }
                 }

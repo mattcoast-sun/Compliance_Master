@@ -103,7 +103,7 @@
                     "type": "string",
                     "description": "ID of pre-loaded document",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
                   },
                   "iso_standard": {
                     "type": "string",
@@ -194,7 +194,7 @@
                     "type": "string",
                     "description": "ID of pre-loaded document",
                     "example": "non_compliant_iso",
-                    "enum": ["sample_calibration", "non_compliant_iso"]
+                    "enum": ["sample_calibration", "non_compliant_iso", "sample_calib", "cool_lazer"]
                   },
                   "iso_standard": {
                     "type": "string",
